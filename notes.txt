@@ -1,0 +1,65 @@
+# 2.1
+created column_dtypes.csv, dataset_overview.csv and missing_values.csv to analyze the data
+in results\data_analysis\tables
+
+# 2.2
+created remarks_distribution.csv in results\data_analysis\tables
+remarks is not distributed imbalanced :
+remarks,count
+1,  50327
+3,  47493
+2,  47061
+4,  37270
+5,  17849
+
+# 2.3
+Feature statistics are created :
+1) feature_statistics.csv in results\data_analysis\tables
+2) histograms for feature in results\data_analysis\feature_distributions\plots
+all of the features are highly balanced:
+feature,    count,      mean,       std,                min,    25%,    median, 75%,    max,missing_count,  missing_pct
+x1,         200000.0,   5.000595,   3.162366937722162,  0.0,    2.0,    5.0,    8.0,    10.0,   0,  0.0
+x2,         200000.0,   5.000405,   3.160940491957887,  0.0,    2.0,    5.0,    8.0,    10.0,   0,  0.0
+x3,         200000.0,   5.00652,    3.1650399013263457, 0.0,    2.0,    5.0,    8.0,    10.0,   0,  0.0
+x4,         200000.0,   5.000875,   3.1623210203497965, 0.0,    2.0,    5.0,    8.0,    10.0,   0,  0.0
+x5,         200000.0,   5.00057,    3.1623487596007473, 0.0,    2.0,    5.0,    8.0,    10.0,   0,  0.0
+x6,         200000.0,   4.999495,   3.162676834202127,  0.0,    2.0,    5.0,    8.0,    10.0,   0,  0.0
+x7,         200000.0,   19.99531,   11.830955914949953, 0.0,    10.0,   20.0,   30.0,   40.0,   0,  0.0
+
+# 2.4 
+correlation_matrix is created in results\data_analysis\tables
+heatmap created in results\data_analysis\plots
+most correlation with remarks is with x7(0.82). 
+and the other features have low correlation with remarks all(0.20)
+
+# 2.5
+feature vs remarks distributions are visualized using per-class histograms
+in results\data_analysis\plots\feature_vs_remarks
+x1–x6 show almost identical distributions across all remarks classes, indicating weak
+separability and low individual predictive power.
+x7 shows a clearly structured shift in distributions across remarks classes and provides
+strong visual separation, which is consistent with the high correlation value (0.82)
+observed in Task 2.4.
+
+
+For the step for creating rules
+I am going to combine x1-x6 together since they have the nearly same correlation with remarks, distribution and count and etc
+I am call this new variable S and use it with x7 (exam score).
+x7 will be the main decider and S will be in the use for refinement near the borders of x7
+fuzzy sets for S will be 3 sets Low, Medium, High
+fuzzy sets for x7 will be 5 sets VeryLow, Low, Medium, High, VeryHigh
+
+For both fis and anfis, three version will be tested as an ablation study :
+1) Only x7-baseline
+2) all 7 features
+3) S and x7 combined
+
+
+# 3 Data selection/splits
+for the fis run 1 and run 2 data, since in the instructions it is said two completely different 100 indices
+the selected indices for run1 is forbidden in the selection for the dataset for run2 
+
+For anfis there is no constraint like that.
+
+make_fis_splits.py is used for splitting fis datasets and the csv files + meta...json 
+files are saved in data\splits

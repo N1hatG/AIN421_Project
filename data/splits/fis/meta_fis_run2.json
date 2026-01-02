@@ -1,0 +1,29 @@
+{
+  "type": "FIS",
+  "run_id": 2,
+  "seed": 42102,
+  "total_rows": 100,
+  "rows_per_class": 20,
+  "classes": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "features": [
+    "x1",
+    "x2",
+    "x3",
+    "x4",
+    "x5",
+    "x6",
+    "x7"
+  ],
+  "engineered_features": [
+    "S (mean of x1..x6)"
+  ],
+  "target": "remarks",
+  "disjoint_from_other_runs": true,
+  "note": "fis_run2 is sampled from rows excluding fis_run1 indices"
+}
