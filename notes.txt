@@ -299,7 +299,7 @@ Differences between runs are dominated by sampling variance, not model instabili
 These results validate the architectural concept of hierarchical fuzzy decision control and justify further evaluation on larger test sets (as planned with ANFIS).
 
 
-# 4.2 FIS-2 (x7 + x2 + x3) – overlap-gated refinement
+# 4.3 FIS-2 (x7 + x2 + x3) – overlap-gated refinement
 
 Goal:
 The x7-only baseline (FIS-1) is strong but makes frequent errors near class boundaries,
@@ -345,3 +345,322 @@ across different 100-sample selections. This suggests the refinement signal from
 and the evaluation variance is high with such a small test size.
 The safest configuration so far is ref_weight=3.0 and gate_relax=0.25 (no regression),
 while ref_weight=3.0 and gate_relax=0.35 gives the best run1 accuracy but slightly hurts run2.
+
+# 4.3 FIS-2 Parameter Sweep (refinement strength vs gate overlap)
+
+Goal: increase the influence of x2 and x3 only in ambiguous x7 boundary regions
+without disturbing the strong overall ordering imposed by x7.
+
+We introduced two hyperparameters for FIS-2 (x7 + x2 + x3):
+- ref_weight: scales the firing strength of the 5 refinement (overlap-gated) rules
+- gate_relax: widens the overlap regions between adjacent x7 membership functions,
+  allowing refinement rules to trigger more frequently
+
+Experiment: fix gate_relax = 0.25 and sweep ref_weight in [1.0, 1.5, 2.0, 2.5, 3.0, 3.5]
+Mode: overlap10
+Splits: fis_run1.csv and fis_run2.csv
+
+Results:
+- For fis_run1: Accuracy remained constant at 0.54 for all ref_weight values.
+- For fis_run2: Accuracy remained constant at 0.54 for all ref_weight values.
+- Confusion matrices were unchanged across ref_weight values.
+
+Interpretation:
+These results indicate that at gate_relax=0.25, the refinement rules are not affecting
+final predictions. Either they are rarely/never firing due to narrow x7 overlaps,
+or their impact is dominated by the core x7 rules, causing aggregation and rounding
+to yield identical class outputs.
+
+Conclusion:
+At gate_relax=0.25, tuning ref_weight is ineffective. The limiting factor is the
+overlap coverage (gate_relax), not refinement strength. Therefore, future tuning
+should focus on gate_relax (or alternative gating definitions) to ensure refinement
+rules activate in boundary regions.
+
+# 4.3.2 FIS-2 Gate Relaxation Sweep (overlap gating sensitivity)
+
+We investigated how widening the x7 overlap regions (gate_relax) affects the
+overlap-gated refinement rules (x2/x3-based) in FIS-2, while keeping ref_weight fixed.
+
+Setup:
+- Model: FIS-2 (x7 + x2 + x3), mode=overlap10
+- ref_weight fixed: 3.0
+- gate_relax values tested: 0.00, 0.15, 0.25, 0.35, 0.45, 0.55, 0.65
+- Splits: fis_run1.csv and fis_run2.csv (each 100 instances)
+
+Results (Accuracy):
+Run1:
+- g=0.00: 0.54
+- g=0.15: 0.54
+- g=0.25: 0.54
+- g=0.35: 0.56  (best)
+- g=0.45: 0.54
+- g=0.55: 0.56  (best)
+
+Run2:
+- g=0.00: 0.54  (best, tie)
+- g=0.15: 0.54  (best, tie)
+- g=0.25: 0.54  (best, tie)
+- g=0.35: 0.53
+- g=0.45: 0.51
+- g=0.55: 0.53
+- g=0.65: 0.51
+
+Interpretation:
+- On run1, increasing overlap sometimes improves accuracy (g≈0.35 or 0.55),
+  suggesting refinement rules help resolve some boundary cases.
+- On run2, larger overlaps consistently decrease accuracy, implying that refinement
+  rules over-trigger and shift predictions toward neighboring classes incorrectly.
+
+Conclusion:
+FIS-2 is sensitive to gate_relax due to small evaluation splits (100 instances).
+No single gate_relax improved both runs. A conservative choice (g≤0.25) is more stable
+across runs, while larger overlap values can boost one split but harm another.
+
+We therefore report gate_relax=0.25 as a stable default setting and note that further
+validation on larger splits / cross-validation would be needed to reliably select a
+globally optimal gate setting.
+
+
+
+# 4.3.3  FIS-2 (x7 + x2 + x3) – Gate / Weight Tuning Results (Mac sweep)
+
+We tuned two hyperparameters in the overlap-gated FIS-2 model:
+
+1) ref_weight:
+   - scales the firing strength of the refinement rules (x2/x3-based) relative to the x7 core rules
+2) gate_relax:
+   - relaxes/widens the overlap gating so refinement rules activate more often (less strict ambiguity requirement)
+
+Important note on evaluation variance:
+- Each FIS split (fis_run1 / fis_run2) contains only 100 samples (20 per class).
+- Therefore, accuracy changes of ±0.01–0.03 can occur from only a few samples flipping classes.
+- This explains why the same parameter choice can improve run1 but slightly degrade run2.
+
+------------------------------------------------------------
+(1) ref_weight sweep with fixed gate_relax = 0.25
+------------------------------------------------------------
+Setup:
+- mode = overlap10
+- gate_relax = 0.25
+- ref_weight tested: 1.0, 1.5, 2.0, 2.5, 3.0, 3.5
+- evaluated on fis_run1 and fis_run2
+
+Results:
+- fis_run1: accuracy stayed constant at 0.54 for all ref_weight values
+- fis_run2: accuracy stayed constant at 0.54 for all ref_weight values
+- confusion matrices were identical across the sweep
+
+Interpretation:
+- At gate_relax = 0.25, ref_weight has no visible effect.
+- This means refinement rules either:
+  (a) rarely fire due to narrow overlap regions, or
+  (b) fire but are dominated by the core x7 rules during aggregation/defuzzification.
+- Conclusion: ref_weight is not the limiting factor at g=0.25; overlap coverage (gate_relax) is.
+
+------------------------------------------------------------
+(2) gate_relax sweep with fixed ref_weight = 3.0
+------------------------------------------------------------
+Setup:
+- mode = overlap10
+- ref_weight = 3.0 fixed
+- gate_relax tested: 0.00, 0.15, 0.25, 0.35, 0.45, 0.55, 0.65
+- evaluated on fis_run1 and fis_run2
+
+Accuracy results:
+
+Run1 (fis_run1.csv):
+- g=0.00 -> 0.54
+- g=0.15 -> 0.54
+- g=0.25 -> 0.54
+- g=0.35 -> 0.56  (best)
+- g=0.45 -> 0.54
+- g=0.55 -> 0.56  (best)
+(plateau at 0.54 except peaks at 0.35 and 0.55)
+
+Run2 (fis_run2.csv):
+- g=0.00 -> 0.54  (best region)
+- g=0.15 -> 0.54  (best region)
+- g=0.25 -> 0.54  (best region)
+- g=0.35 -> 0.53
+- g=0.45 -> 0.51  (worst observed)
+- g=0.55 -> 0.53
+- g=0.65 -> 0.51
+(run2 consistently degrades when g > 0.25)
+
+Interpretation:
+- Run1 shows a “sweet spot” around g≈0.35–0.55 where boundary cases are resolved slightly better.
+- Run2 does NOT share this sweet spot: higher g makes refinement over-trigger and harms accuracy.
+
+------------------------------------------------------------
+(3) Run2 detailed failure analysis (g=0.45 vs g=0.20)
+------------------------------------------------------------
+We compared confusion matrices for fis_run2 at two gate values (ref_weight=3.0):
+
+Run2 @ g=0.20 (Acc ≈ 0.54):
+true\pred:  1   2   3   4   5
+1          13   5   2   0   0
+2           7  13   0   0   0
+3           1   3   8   6   2
+4           0   0   4   5  11
+5           0   0   2   3  15
+
+Run2 @ g=0.45 (Acc ≈ 0.51):
+true\pred:  1   2   3   4   5
+1          13   6   1   0   0
+2           7  13   0   0   0
+3           1   6   5   6   2
+4           0   0   4   5  11
+5           0   0   2   3  15
+
+Main change:
+- The biggest degradation is in class 3 (middle boundary stability):
+  * true 3 -> pred 2 increases from 3 to 6
+  * true 3 -> pred 3 decreases from 8 to 5
+
+This indicates that when gate_relax is too large:
+- refinement rules begin to fire too often in the 2|3 region,
+- and they push uncertain class-3 samples downward into class-2.
+
+Notably:
+- class-4 and class-5 behavior stays almost unchanged in this particular comparison,
+  meaning the dominant run2 drop at g=0.45 is driven mainly by the 2|3 boundary distortion.
+
+Conclusion from this comparison:
+- larger gate_relax increases variance and harms the sensitive middle boundary (2|3),
+  especially under small-sample splits like fis_run2.
+
+------------------------------------------------------------
+(4) Practical parameter choice (robustness across runs)
+------------------------------------------------------------
+Because no single gate_relax improves both runs simultaneously:
+
+- Stable default:
+  ref_weight=3.0, gate_relax <= 0.25
+  (does not regress either run; both remain at 0.54)
+
+- Best run1 score:
+  ref_weight=3.0, gate_relax=0.35 (or 0.55)
+  (run1 reaches 0.56 but run2 drops to ~0.53)
+
+Suggested reporting strategy:
+- Report both “best run1” and “stable across runs” settings.
+- Also report an average across runs:
+  avg_acc = (acc_run1 + acc_run2)/2
+  Example:
+  - g=0.35: (0.56 + 0.53)/2 = 0.545
+  - g=0.25: (0.54 + 0.54)/2 = 0.540
+  => g=0.35 is slightly better on average but less stable for run2.
+
+------------------------------------------------------------
+(5) Next steps
+------------------------------------------------------------
+1) Higher-resolution search:
+   - run1 focus: g in [0.30..0.60] step 0.05 (peaks observed at 0.35 and 0.55)
+   - run2 focus: prioritize g <= 0.30 (best region so far)
+
+2) If we want to keep higher gate_relax:
+   - add a targeted patch rule to prevent over-correction at the 2|3 boundary
+   - (goal: preserve run1 gains while preventing run2 collapse)
+
+Mac terminal quick sweep loops (used):
+Run1 (w=3.0):
+for g in 0.00 0.05 0.10 0.15 0.20 0.25 0.30 0.35 0.40 0.45 0.50 0.55 0.60; do
+  echo "RUN1 w=3.0 g=$g"
+  python3 src/fis_models/fis2_x7_x2x3.py --input data/splits/fis/fis_run1.csv --mode overlap10 --ref_weight 3.0 --gate_relax $g
+done
+
+Run2 (w=3.0):
+for g in 0.00 0.05 0.10 0.15 0.20 0.25 0.30 0.35 0.40 0.45 0.50 0.55 0.60; do
+  echo "RUN2 w=3.0 g=$g"
+  python3 src/fis_models/fis2_x7_x2x3.py --input data/splits/fis/fis_run2.csv --mode overlap10 --ref_weight 3.0 --gate_relax $g
+done
+
+
+
+# 4.4 FIS-3: (x7 + S) – initial evaluation (core vs refinement)
+
+FIS-3 was designed to combine:
+
+x7 (dominant variable; strong correlation with remarks)
+
+S = average(x1..x6) (weak features combined into one stabilizing signal)
+
+Two modes were evaluated:
+
+core5: only the 5 core x7 rules (baseline mapping)
+
+overlap10: core rules + overlap-gated refinement rules using S
+
+FIS-3 Results (default parameters)
+
+Default parameters used by the script:
+
+ref_weight = 1.0
+
+gate_relax = 0.25
+
+Run1:
+
+core5 accuracy = 0.54
+
+overlap10 accuracy = 0.54
+
+confusion matrices were identical between core5 and overlap10
+
+Run2:
+
+core5 accuracy = 0.51
+
+overlap10 accuracy = 0.51
+
+confusion matrices were identical between core5 and overlap10
+
+Interpretation
+
+At the default configuration (w=1.0, g=0.25), the refinement logic using S does not change the final predictions (core5 ≡ overlap10). This suggests that the S-based refinement rules are either:
+
+not firing due to strict overlap gating, or
+
+firing but being dominated by the core x7 rules during aggregation / defuzzification.
+
+Also, the run2 accuracy (0.51) is lower than the earlier x7 baseline (~0.54), indicating that the current FIS-3 membership/rule setup may introduce slight instability on the small 100-sample split.
+
+Next step
+
+We will tune FIS-3 similarly to FIS-2 by sweeping:
+
+gate_relax (controls how frequently overlap refinement can activate)
+
+ref_weight (scales refinement rule contribution)
+to ensure that S has measurable influence only in ambiguous x7 regions, without degrading the overall ordering imposed by x7.
+
+
+# 4.4 FIS-3 (x7 + S) – Initial sweep results
+
+We evaluated FIS-3 using x7 as the primary decision variable and S (mean of x1–x6) as a
+secondary refinement signal in overlap regions (mode=overlap10).
+
+Gate relaxation sweep (ref_weight=1.0):
+gate_relax ∈ {0.00, 0.15, 0.25, 0.35, 0.45, 0.55, 0.65}
+
+Results:
+- fis_run1: accuracy stayed constant at 0.54 for all gate_relax values, with identical confusion matrices.
+- fis_run2: accuracy stayed constant at 0.51 for all gate_relax values, with identical confusion matrices.
+
+Interpretation:
+- gate_relax currently has no effect in FIS-3, indicating that the overlap-gated S refinement
+  rules are not influencing the final predictions (either not firing, or being dominated by x7 core rules).
+- Compared to the x7 baseline (~0.54), fis_run2 performance dropped to 0.51, mainly due to additional
+  misclassification of true class-3 samples into class-1.
+
+Runtime behavior:
+- The script consistently prints a RuntimeWarning about division by zero in crisp computation,
+  meaning that for some samples the aggregated firing strength denominator becomes zero (no rules fire).
+  These cases are replaced with a default crisp value (3.0), but this indicates imperfect coverage in the
+  membership definitions and can contribute to unstable behavior.
+
+Next steps:
+- Run a ref_weight sweep (stronger S influence) while keeping gate_relax fixed.
+- If predictions remain unchanged across ref_weight, instrument the code to verify whether S refinement
+  rules ever fire and how frequently denom==0 occurs.

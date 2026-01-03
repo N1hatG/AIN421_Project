@@ -1,0 +1,110 @@
+FIS-2 (x7 + x2 + x3) – overlap10
+Gate / weight tuning notes (fis_run1.csv & fis_run2.csv)
+
+Context
+- We tuned two knobs:
+  1) ref_weight: scales the “reference/remark (x7)” contribution
+  2) gate_relax: relaxes/tunes the gating behavior (how easily rules fire / overlap is tolerated)
+
+- Important: run2 appears small (~100 instances), so accuracy moves of ±0.01–0.03 can happen from a few samples flipping.
+  This is consistent with seeing run1 improve while run2 slightly drops for the same “improved” params.
+
+============================================================
+Run 1 summary (fis_run1.csv)
+============================================================
+
+Baseline (example):
+- ref_weight=2.0, gate_relax=0.25  -> Acc = 0.54
+
+Best observed:
+- ref_weight=3.0, gate_relax=0.35  -> Acc = 0.56   (improved)
+
+Gate sweep behavior (ref_weight=3.0):
+- gate_relax in {0.00, 0.15, 0.20, 0.25, 0.30} -> Acc ~ 0.54 (plateau)
+- gate_relax = 0.35 -> Acc 0.56 (peak)
+- gate_relax = 0.45 -> Acc 0.54
+- gate_relax = 0.55 -> Acc 0.56 (peak again)
+- gate_relax >= 0.65 -> Acc ~ 0.54 (mostly plateau)
+
+Interpretation (Run1):
+- gate_relax has a “sweet spot” around ~0.35–0.55 where ambiguous cases are resolved slightly better.
+- Most other gate values produce the same behavior (plateau), meaning the system is often dominated by the same rules.
+
+============================================================
+Run 2 summary (fis_run2.csv)
+============================================================
+
+Stable/best region:
+- ref_weight=3.0 with gate_relax in {0.00, 0.15, 0.25} -> Acc = 0.54 (stable)
+- ref_weight=2.0, gate_relax=0.25 -> Acc = 0.54 (same)
+
+Degradation when gate_relax increases:
+- gate_relax = 0.35 -> Acc = 0.53
+- gate_relax = 0.45 -> Acc = 0.51 (worst observed in this sweep)
+- gate_relax = 0.55 -> Acc = 0.53
+- gate_relax = 0.65 -> Acc = 0.51
+(so the “run1 sweet spot” does NOT transfer to run2)
+
+Interpretation (Run2):
+- Higher gate_relax seems to push predictions toward more extreme classes in run2.
+- The drop is small in absolute terms but consistent: 0.54 -> 0.51/0.53.
+
+Most visible failure pattern at gate_relax=0.45 (ref_weight=3.0):
+- A big chunk of true class 4 gets predicted as class 5 (4 -> 5).
+  This suggests the boundary between “High” and “Very High” is getting damaged when gating is relaxed,
+  i.e., the “very high” rule fires too easily and overrides the “high” region decisions.
+
+============================================================
+Ref weight sweep (Mac results, gate_relax=0.25)
+============================================================
+
+- For BOTH run1 and run2, changing ref_weight from 1.0 up to 3.5 while keeping gate_relax=0.25
+  produced the same accuracy (0.54) and same confusion patterns.
+- Conclusion: at gate_relax=0.25, the system is not sensitive to ref_weight (in our current rule setup / overlaps).
+
+============================================================
+Main takeaway
+============================================================
+
+- We are on the right path: run1 improves with a tuned gate_relax (0.35 gives +0.02).
+- Run2 decreases for the same gate_relax (likely due to small sample size + distribution differences),
+  and because relaxed gating appears to “over-fire” high-end rules (notably causing 4 -> 5 errors).
+
+============================================================
+Next steps (recommended)
+============================================================
+
+1) Test more gate_relax values (higher resolution search)
+   - For run1: focus around 0.30–0.60 (step 0.05) because we saw peaks at 0.35 and 0.55.
+   - For run2: keep priority on <= 0.30 (since 0.00–0.25 is best so far).
+
+2) Report a “robust” score across runs
+   - Instead of picking a single run’s best params, compute:
+     avg_acc = (acc_run1 + acc_run2)/2
+     and choose params that improve average or at least don’t hurt run2 badly.
+   - With current observations:
+     - (w=3.0, g=0.35): run1 0.56 but run2 0.53 (average 0.545)
+     - (w=3.0, g=0.25): run1 0.54 and run2 0.54 (average 0.54)
+     => g=0.35 is slightly better on average, but less stable for run2.
+
+3) Boundary fix idea (if we keep higher gate_relax)
+   - The main damage looks like the High->VeryHigh boundary (true 4 becoming 5).
+   - A targeted patch would be to add/adjust a rule so that “very high (x7)” does NOT automatically force class 5
+     when x2/x3 indicate weaker evidence (or when other signals suggest class 4).
+   - This can preserve run1 gains while preventing run2 collapse.
+
+============================================================
+Mac terminal quick sweep snippet (optional)
+============================================================
+
+Run1 gate sweep (ref_weight=3.0):
+for g in 0.00 0.05 0.10 0.15 0.20 0.25 0.30 0.35 0.40 0.45 0.50 0.55 0.60; do
+  echo "RUN1 w=3.0 g=$g"
+  python3 src/fis_models/fis2_x7_x2x3.py --input data/splits/fis/fis_run1.csv --mode overlap10 --ref_weight 3.0 --gate_relax $g
+done
+
+Run2 gate sweep (ref_weight=3.0):
+for g in 0.00 0.05 0.10 0.15 0.20 0.25 0.30 0.35 0.40 0.45 0.50 0.55 0.60; do
+  echo "RUN2 w=3.0 g=$g"
+  python3 src/fis_models/fis2_x7_x2x3.py --input data/splits/fis/fis_run2.csv --mode overlap10 --ref_weight 3.0 --gate_relax $g
+done

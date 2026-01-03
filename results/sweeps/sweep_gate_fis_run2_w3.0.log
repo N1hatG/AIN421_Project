@@ -1,0 +1,261 @@
+=== Sweeping gate_relax for fis_run2.csv (ref_weight=3.0) ===
+
+>>> run=fis_run2.csv ref_weight=3.0 gate_relax=0.00
+
+=== FIS-2 (x7 + x2 + x3) mode=overlap10 ===
+ref_weight=3.0, gate_relax=0.0
+Input: /Users/nihat/Desktop/Codes/BBM-AIN/AIN421_Project/data/splits/fis/fis_run2.csv
+Accuracy: 0.5400
+
+Confusion matrix (rows=true, cols=pred):
+
+pred   1   2  3  4   5
+true                  
+1     13   5  2  0   0
+2      7  13  0  0   0
+3      1   3  8  6   2
+4      0   0  4  5  11
+5      0   0  2  3  15
+
+Saved confusion matrix to: /Users/nihat/Desktop/Codes/BBM-AIN/AIN421_Project/results/fis_results/fis-2/confusion_fis_run2_fis2_x7_x2x3_overlap10_w3_g0.csv
+Saved predictions to: /Users/nihat/Desktop/Codes/BBM-AIN/AIN421_Project/results/fis_results/fis-2/predictions_fis_run2_fis2_x7_x2x3_overlap10_w3_g0.csv
+
+>>> run=fis_run2.csv ref_weight=3.0 gate_relax=0.05
+
+=== FIS-2 (x7 + x2 + x3) mode=overlap10 ===
+ref_weight=3.0, gate_relax=0.05
+Input: /Users/nihat/Desktop/Codes/BBM-AIN/AIN421_Project/data/splits/fis/fis_run2.csv
+Accuracy: 0.5400
+
+Confusion matrix (rows=true, cols=pred):
+
+pred   1   2  3  4   5
+true                  
+1     13   5  2  0   0
+2      7  13  0  0   0
+3      1   3  8  6   2
+4      0   0  4  5  11
+5      0   0  2  3  15
+
+Saved confusion matrix to: /Users/nihat/Desktop/Codes/BBM-AIN/AIN421_Project/results/fis_results/fis-2/confusion_fis_run2_fis2_x7_x2x3_overlap10_w3_g0.05.csv
+Saved predictions to: /Users/nihat/Desktop/Codes/BBM-AIN/AIN421_Project/results/fis_results/fis-2/predictions_fis_run2_fis2_x7_x2x3_overlap10_w3_g0.05.csv
+
+>>> run=fis_run2.csv ref_weight=3.0 gate_relax=0.10
+
+=== FIS-2 (x7 + x2 + x3) mode=overlap10 ===
+ref_weight=3.0, gate_relax=0.1
+Input: /Users/nihat/Desktop/Codes/BBM-AIN/AIN421_Project/data/splits/fis/fis_run2.csv
+Accuracy: 0.5400
+
+Confusion matrix (rows=true, cols=pred):
+
+pred   1   2  3  4   5
+true                  
+1     13   5  2  0   0
+2      7  13  0  0   0
+3      1   3  8  6   2
+4      0   0  4  5  11
+5      0   0  2  3  15
+
+Saved confusion matrix to: /Users/nihat/Desktop/Codes/BBM-AIN/AIN421_Project/results/fis_results/fis-2/confusion_fis_run2_fis2_x7_x2x3_overlap10_w3_g0.1.csv
+Saved predictions to: /Users/nihat/Desktop/Codes/BBM-AIN/AIN421_Project/results/fis_results/fis-2/predictions_fis_run2_fis2_x7_x2x3_overlap10_w3_g0.1.csv
+
+>>> run=fis_run2.csv ref_weight=3.0 gate_relax=0.15
+
+=== FIS-2 (x7 + x2 + x3) mode=overlap10 ===
+ref_weight=3.0, gate_relax=0.15
+Input: /Users/nihat/Desktop/Codes/BBM-AIN/AIN421_Project/data/splits/fis/fis_run2.csv
+Accuracy: 0.5400
+
+Confusion matrix (rows=true, cols=pred):
+
+pred   1   2  3  4   5
+true                  
+1     13   5  2  0   0
+2      7  13  0  0   0
+3      1   3  8  6   2
+4      0   0  4  5  11
+5      0   0  2  3  15
+
+Saved confusion matrix to: /Users/nihat/Desktop/Codes/BBM-AIN/AIN421_Project/results/fis_results/fis-2/confusion_fis_run2_fis2_x7_x2x3_overlap10_w3_g0.15.csv
+Saved predictions to: /Users/nihat/Desktop/Codes/BBM-AIN/AIN421_Project/results/fis_results/fis-2/predictions_fis_run2_fis2_x7_x2x3_overlap10_w3_g0.15.csv
+
+>>> run=fis_run2.csv ref_weight=3.0 gate_relax=0.20
+
+=== FIS-2 (x7 + x2 + x3) mode=overlap10 ===
+ref_weight=3.0, gate_relax=0.2
+Input: /Users/nihat/Desktop/Codes/BBM-AIN/AIN421_Project/data/splits/fis/fis_run2.csv
+Accuracy: 0.5400
+
+Confusion matrix (rows=true, cols=pred):
+
+pred   1   2  3  4   5
+true                  
+1     13   5  2  0   0
+2      7  13  0  0   0
+3      1   3  8  6   2
+4      0   0  4  5  11
+5      0   0  2  3  15
+
+Saved confusion matrix to: /Users/nihat/Desktop/Codes/BBM-AIN/AIN421_Project/results/fis_results/fis-2/confusion_fis_run2_fis2_x7_x2x3_overlap10_w3_g0.2.csv
+Saved predictions to: /Users/nihat/Desktop/Codes/BBM-AIN/AIN421_Project/results/fis_results/fis-2/predictions_fis_run2_fis2_x7_x2x3_overlap10_w3_g0.2.csv
+
+>>> run=fis_run2.csv ref_weight=3.0 gate_relax=0.25
+
+=== FIS-2 (x7 + x2 + x3) mode=overlap10 ===
+ref_weight=3.0, gate_relax=0.25
+Input: /Users/nihat/Desktop/Codes/BBM-AIN/AIN421_Project/data/splits/fis/fis_run2.csv
+Accuracy: 0.5400
+
+Confusion matrix (rows=true, cols=pred):
+
+pred   1   2  3  4   5
+true                  
+1     13   5  2  0   0
+2      7  13  0  0   0
+3      1   3  8  6   2
+4      0   0  4  5  11
+5      0   0  2  3  15
+
+Saved confusion matrix to: /Users/nihat/Desktop/Codes/BBM-AIN/AIN421_Project/results/fis_results/fis-2/confusion_fis_run2_fis2_x7_x2x3_overlap10_w3_g0.25.csv
+Saved predictions to: /Users/nihat/Desktop/Codes/BBM-AIN/AIN421_Project/results/fis_results/fis-2/predictions_fis_run2_fis2_x7_x2x3_overlap10_w3_g0.25.csv
+
+>>> run=fis_run2.csv ref_weight=3.0 gate_relax=0.30
+
+=== FIS-2 (x7 + x2 + x3) mode=overlap10 ===
+ref_weight=3.0, gate_relax=0.3
+Input: /Users/nihat/Desktop/Codes/BBM-AIN/AIN421_Project/data/splits/fis/fis_run2.csv
+Accuracy: 0.5400
+
+Confusion matrix (rows=true, cols=pred):
+
+pred   1   2  3  4   5
+true                  
+1     13   5  2  0   0
+2      7  13  0  0   0
+3      1   3  8  6   2
+4      0   0  4  5  11
+5      0   0  2  3  15
+
+Saved confusion matrix to: /Users/nihat/Desktop/Codes/BBM-AIN/AIN421_Project/results/fis_results/fis-2/confusion_fis_run2_fis2_x7_x2x3_overlap10_w3_g0.3.csv
+Saved predictions to: /Users/nihat/Desktop/Codes/BBM-AIN/AIN421_Project/results/fis_results/fis-2/predictions_fis_run2_fis2_x7_x2x3_overlap10_w3_g0.3.csv
+
+>>> run=fis_run2.csv ref_weight=3.0 gate_relax=0.35
+
+=== FIS-2 (x7 + x2 + x3) mode=overlap10 ===
+ref_weight=3.0, gate_relax=0.35
+Input: /Users/nihat/Desktop/Codes/BBM-AIN/AIN421_Project/data/splits/fis/fis_run2.csv
+Accuracy: 0.5300
+
+Confusion matrix (rows=true, cols=pred):
+
+pred   1   2  3  4   5
+true                  
+1     13   7  0  0   0
+2      7  13  0  0   0
+3      1   4  7  6   2
+4      0   1  3  5  11
+5      0   0  2  3  15
+
+Saved confusion matrix to: /Users/nihat/Desktop/Codes/BBM-AIN/AIN421_Project/results/fis_results/fis-2/confusion_fis_run2_fis2_x7_x2x3_overlap10_w3_g0.35.csv
+Saved predictions to: /Users/nihat/Desktop/Codes/BBM-AIN/AIN421_Project/results/fis_results/fis-2/predictions_fis_run2_fis2_x7_x2x3_overlap10_w3_g0.35.csv
+
+>>> run=fis_run2.csv ref_weight=3.0 gate_relax=0.40
+
+=== FIS-2 (x7 + x2 + x3) mode=overlap10 ===
+ref_weight=3.0, gate_relax=0.4
+Input: /Users/nihat/Desktop/Codes/BBM-AIN/AIN421_Project/data/splits/fis/fis_run2.csv
+Accuracy: 0.5100
+
+Confusion matrix (rows=true, cols=pred):
+
+pred   1   2  3  4   5
+true                  
+1     13   6  1  0   0
+2      7  13  0  0   0
+3      1   6  5  6   2
+4      0   0  4  5  11
+5      0   0  2  3  15
+
+Saved confusion matrix to: /Users/nihat/Desktop/Codes/BBM-AIN/AIN421_Project/results/fis_results/fis-2/confusion_fis_run2_fis2_x7_x2x3_overlap10_w3_g0.4.csv
+Saved predictions to: /Users/nihat/Desktop/Codes/BBM-AIN/AIN421_Project/results/fis_results/fis-2/predictions_fis_run2_fis2_x7_x2x3_overlap10_w3_g0.4.csv
+
+>>> run=fis_run2.csv ref_weight=3.0 gate_relax=0.45
+
+=== FIS-2 (x7 + x2 + x3) mode=overlap10 ===
+ref_weight=3.0, gate_relax=0.45
+Input: /Users/nihat/Desktop/Codes/BBM-AIN/AIN421_Project/data/splits/fis/fis_run2.csv
+Accuracy: 0.5100
+
+Confusion matrix (rows=true, cols=pred):
+
+pred   1   2  3  4   5
+true                  
+1     13   6  1  0   0
+2      7  13  0  0   0
+3      1   6  5  6   2
+4      0   0  4  5  11
+5      0   0  2  3  15
+
+Saved confusion matrix to: /Users/nihat/Desktop/Codes/BBM-AIN/AIN421_Project/results/fis_results/fis-2/confusion_fis_run2_fis2_x7_x2x3_overlap10_w3_g0.45.csv
+Saved predictions to: /Users/nihat/Desktop/Codes/BBM-AIN/AIN421_Project/results/fis_results/fis-2/predictions_fis_run2_fis2_x7_x2x3_overlap10_w3_g0.45.csv
+
+>>> run=fis_run2.csv ref_weight=3.0 gate_relax=0.50
+
+=== FIS-2 (x7 + x2 + x3) mode=overlap10 ===
+ref_weight=3.0, gate_relax=0.5
+Input: /Users/nihat/Desktop/Codes/BBM-AIN/AIN421_Project/data/splits/fis/fis_run2.csv
+Accuracy: 0.5100
+
+Confusion matrix (rows=true, cols=pred):
+
+pred   1   2  3  4   5
+true                  
+1     13   7  0  0   0
+2      7  13  0  0   0
+3      1   6  5  6   2
+4      0   1  3  5  11
+5      0   0  2  3  15
+
+Saved confusion matrix to: /Users/nihat/Desktop/Codes/BBM-AIN/AIN421_Project/results/fis_results/fis-2/confusion_fis_run2_fis2_x7_x2x3_overlap10_w3_g0.5.csv
+Saved predictions to: /Users/nihat/Desktop/Codes/BBM-AIN/AIN421_Project/results/fis_results/fis-2/predictions_fis_run2_fis2_x7_x2x3_overlap10_w3_g0.5.csv
+
+>>> run=fis_run2.csv ref_weight=3.0 gate_relax=0.55
+
+=== FIS-2 (x7 + x2 + x3) mode=overlap10 ===
+ref_weight=3.0, gate_relax=0.55
+Input: /Users/nihat/Desktop/Codes/BBM-AIN/AIN421_Project/data/splits/fis/fis_run2.csv
+Accuracy: 0.5300
+
+Confusion matrix (rows=true, cols=pred):
+
+pred   1   2  3  4   5
+true                  
+1     13   7  0  0   0
+2      7  13  0  0   0
+3      1   4  7  6   2
+4      0   1  3  5  11
+5      0   0  2  3  15
+
+Saved confusion matrix to: /Users/nihat/Desktop/Codes/BBM-AIN/AIN421_Project/results/fis_results/fis-2/confusion_fis_run2_fis2_x7_x2x3_overlap10_w3_g0.55.csv
+Saved predictions to: /Users/nihat/Desktop/Codes/BBM-AIN/AIN421_Project/results/fis_results/fis-2/predictions_fis_run2_fis2_x7_x2x3_overlap10_w3_g0.55.csv
+
+>>> run=fis_run2.csv ref_weight=3.0 gate_relax=0.60
+
+=== FIS-2 (x7 + x2 + x3) mode=overlap10 ===
+ref_weight=3.0, gate_relax=0.6
+Input: /Users/nihat/Desktop/Codes/BBM-AIN/AIN421_Project/data/splits/fis/fis_run2.csv
+Accuracy: 0.5300
+
+Confusion matrix (rows=true, cols=pred):
+
+pred   1   2  3  4   5
+true                  
+1     13   7  0  0   0
+2      7  13  0  0   0
+3      1   4  7  6   2
+4      0   1  3  5  11
+5      0   0  2  3  15
+
+Saved confusion matrix to: /Users/nihat/Desktop/Codes/BBM-AIN/AIN421_Project/results/fis_results/fis-2/confusion_fis_run2_fis2_x7_x2x3_overlap10_w3_g0.6.csv
+Saved predictions to: /Users/nihat/Desktop/Codes/BBM-AIN/AIN421_Project/results/fis_results/fis-2/predictions_fis_run2_fis2_x7_x2x3_overlap10_w3_g0.6.csv
