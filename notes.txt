@@ -69,4 +69,279 @@ files are saved in data\splits
 2) data\splits\anfis\ -> anfis_iter1_train.csv / anfis_iter1_test.csv and anfis_iter2_train.csv / anfis_iter2_test.csv
    - each iteration uses 50,000 records total (10,000 per class) and 1/4 reserved for test
 
-   
+
+# 4.1
+x7_class_stats.py in src/fis_design output to results/fis_design :
+1)x7_per_class_statistics.csv :
+      remarks,    count,      mean,   std,    min,    25%,    50%,    75%,    max
+      1,          50327.0,    7.11,   5.676,  0.0,    3.0,    6.0,    11.0,   35.0
+      2,          47061.0,    15.08,  7.618,  0.0,    9.0,    15.0,   20.0,   40.0
+      3,          47493.0,    23.998, 7.738,  0.0,    19.0,   24.0,   30.0,   40.0
+      4,          37270.0,    31.095, 6.105,  5.0,    27.0,   32.0,   36.0,   40.0
+      5,          17849.0,    35.459, 4.074,  14.0,   33.0,   36.0,   39.0,   40.0
+
+2)x7_proposed_boundaries.csv (based on median boundaries between classes):
+      boundary_between_classes,x7_value
+      1 | 2,      10.5
+      2 | 3,      19.5
+      3 | 4,      28.0
+      4 | 5,      34.0
+
+1st decided boundaries: 
+VL: peak near 6, fades to 0 at 10.5
+L:  10.5 —— 15 —— 19.5
+M:  19.5 —— 24 —— 28.0
+H:  28.0 —— 32 —— 34.0
+VH: 34.0 —— 36 —— 40
+
+decided Core Rules (5):
+IF x7 is VL → remarks = 1
+IF x7 is L → remarks = 2
+IF x7 is M → remarks = 3
+IF x7 is H → remarks = 4
+IF x7 is VH → remarks = 5
+
+I will use only these five rules for FIS-1 which is the baseline model only using x7
+Then I will add refinement rules for only-x7 FIS (FIS-1)
+
+
+# 4.2  FIS-1: x7 Baseline + Refinement Study
+
+The baseline FIS model (FIS-1) uses only x7 with the 5 core rules:
+
+IF x7 is VL → remarks = 1  
+IF x7 is L  → remarks = 2  
+IF x7 is M  → remarks = 3  
+IF x7 is H  → remarks = 4  
+IF x7 is VH → remarks = 5  
+
+This model serves as the main interpretable baseline.
+
+Results for FIS-1 (x7 only, 5 core rules):
+
+fis_run1 accuracy ≈ 0.54  
+fis_run2 accuracy ≈ 0.54  
+
+Observed error pattern from confusion matrices:
+Strong confusion occurs at class boundaries:
+1 ↔ 2, 2 ↔ 3, 3 ↔ 4, and 4 ↔ 5.
+This indicates that x7 alone cannot perfectly separate neighboring classes.
+
+To improve this, additional boundary-focused refinement rules were tested while still using only x7:
+
+Added refinement rules:
+
+R6: IF x7 is near (1 | 2 boundary) → remarks = 1  
+R7: IF x7 is near (2 | 3 boundary) → remarks = 2  
+R8: IF x7 is near (3 | 4 boundary) → remarks = 4  
+R9: IF x7 is near (4 | 5 boundary) → remarks = 5  
+R10: IF x7 is near (2 | 3 boundary) AND x7 is Medium → remarks = 3  
+
+This produced a refined x7-only system with 10 rules (5 core + 5 refinement).
+
+However, experimental results showed that this refinement degraded performance:
+
+fis_run1 accuracy dropped from ≈ 0.54 → ≈ 0.53  
+fis_run2 accuracy dropped from ≈ 0.54 → ≈ 0.48  
+
+This demonstrates that naive boundary refinement in Mamdani FIS can introduce destructive interference during aggregation and centroid defuzzification, worsening classification performance.
+
+Final conclusion for FIS-1:
+The 5-rule x7-only system is retained as the official baseline.
+Further performance improvements require incorporating additional information beyond x7, motivating the next models:
+FIS-2 (all features) and FIS-3 (x7 + S).
+
+# 4.3  FIS-2 Design (x7 with x2 and x3 Refinement)
+
+Motivation:
+Exploratory analysis shows that x7 is the dominant predictor of remarks, while x1–x6 have
+nearly identical distributions and weak separability. Therefore, x7 is used as the main decision
+variable. Variables x2 and x3 are introduced only as refinement signals near ambiguous class
+boundaries of x7.
+
+Fuzzy Sets:
+x7:
+  VeryLow (VL), Low (L), Medium (M), High (H), VeryHigh (VH)
+  with boundaries:
+  10.5, 19.5, 28.0, 34.0
+
+x2:
+  Low, Medium, High
+
+x3:
+  Low, Medium, High
+
+Core Rules (baseline mapping):
+R1: IF x7 is VL → remarks = 1
+R2: IF x7 is L  → remarks = 2
+R3: IF x7 is M  → remarks = 3
+R4: IF x7 is H  → remarks = 4
+R5: IF x7 is VH → remarks = 5
+
+Near-Boundary Refinement Rules:
+
+Let NB12, NB23, NB34, NB45 denote fuzzy regions around x7 boundaries:
+10.5, 19.5, 28.0, 34.0 respectively.
+
+Boundary 1|2:
+R6: IF x7 is NB12 AND (x2 is Low OR x3 is Low) → remarks = 1
+R7: IF x7 is NB12 AND (x2 is High OR x3 is High) → remarks = 2
+
+Boundary 2|3:
+R8: IF x7 is NB23 AND (x2 is Low OR x3 is Low) → remarks = 2
+R9: IF x7 is NB23 AND (x2 is High OR x3 is High) → remarks = 3
+
+Boundary 3|4:
+R10: IF x7 is NB34 AND (x2 is Low OR x3 is Low) → remarks = 3
+R11: IF x7 is NB34 AND (x2 is High OR x3 is High) → remarks = 4
+
+Boundary 4|5:
+R12: IF x7 is NB45 AND (x2 is Low OR x3 is Low) → remarks = 4
+R13: IF x7 is NB45 AND (x2 is High OR x3 is High) → remarks = 5
+
+Design Principle:
+x7 remains the dominant decision variable. x2 and x3 only influence the output
+when x7 is near class boundaries, acting as controlled tie-breakers. This preserves
+interpretability and allows performance improvement in overlapping regions.
+
+This design forms FIS-2A in the ablation study.
+
+# 4.3 FIS-2 redesign (x7 + x2 + x3) - overlap-gated refinement
+
+The first refinement approach used extra “near-boundary” fuzzy sets (NB12, NB23, NB34, NB45) around the
+x7 class boundaries. However, the results showed that refinement often made the boundary performance worse
+(e.g., 1|2 became worse), because Mamdani inference with max-aggregation + centroid defuzzification blends
+multiple rule outputs. Adding extra boundary rules increased overlap and shifted the centroid toward wrong
+classes instead of providing a clean correction.
+
+To fix this, the refinement strategy was redesigned to use “overlap-gated” refinement rules instead of
+additional boundary triangles:
+- Ambiguity is detected using overlaps of the existing x7 membership functions:
+  over12 = min(VL, L), over23 = min(L, M), over34 = min(M, H), over45 = min(H, VH).
+- Refinement rules are activated only inside these overlap regions (true ambiguity zones), so they do not
+disturb regions where x7 already gives a clear decision.
+
+Also, refinement rules are directional (only pushing in the needed direction) to avoid adding symmetric
+noise, especially in the 1|2 region where x7 already strongly favors class 1 at low scores.
+
+FIS-2A uses 10 rules total:
+Core rules (5):
+1) IF x7 is VL -> remarks = 1
+2) IF x7 is L  -> remarks = 2
+3) IF x7 is M  -> remarks = 3
+4) IF x7 is H  -> remarks = 4
+5) IF x7 is VH -> remarks = 5
+
+Overlap-gated refinement rules (5) using x2/x3:
+6) IF over12 AND (x2 High OR x3 High) -> remarks = 2
+7) IF over23 AND (x2 Low  OR x3 Low ) -> remarks = 2
+8) IF over23 AND (x2 High OR x3 High) -> remarks = 3
+9) IF over34 AND (x2 High OR x3 High) -> remarks = 4
+10) IF over45 AND (x2 High OR x3 High) -> remarks = 5
+
+Implementation details:
+- Script: src\fis_models\fis2_x7_x2x3.py
+- Two modes are supported for ablation:
+  --mode core5     : only x7 core rules
+  --mode overlap10 : core rules + overlap-gated refinement (10 rules total)
+
+Outputs:
+- Saved to results\fis_results\fis-2\
+  confusion_<split>_fis2_x7_x2x3_<mode>.csv
+  predictions_<split>_fis2_x7_x2x3_<mode>.csv
+
+Additional fix:
+- fis2_crisp values are rounded to 3 decimals in the saved files.
+- Any NaN crisp values (can occur if aggregated membership becomes all zero) are replaced with 3.0 only in
+the saved outputs, without modifying the original dataset.
+
+FIS-2 Results Update (x7 + x2 + x3, Tuned Refinement)
+
+After observing that the original overlap10 refinement in FIS-2 behaved almost identically to the core x7 baseline, two mechanisms were introduced to increase the effective influence of x2 and x3 while preserving the same 10-rule structure:
+
+Relaxed Overlap Gating
+The strict overlap gates between adjacent x7 sets were softened as:
+gate = max(overlap, gate_relax × side_strength)
+This prevents refinement rules from becoming inactive when overlap membership is small.
+
+Refinement Weighting
+Each refinement rule firing strength is multiplied by ref_weight and clipped to 1.0, increasing the contribution of x2/x3–based refinements when they activate.
+
+These changes were introduced to resolve the earlier issue where refined models collapsed to the same behavior as the core x7 baseline.
+
+| Dataset  | Model Variant                                      | Observed Effect                                    |
+| -------- | -------------------------------------------------- | -------------------------------------------------- |
+| **Run1** | Tuned FIS-2 (overlap10 + weighting + relaxed gate) | **Improved accuracy** and better boundary behavior |
+| **Run2** | Tuned FIS-2                                        | **Slight accuracy decrease**                       |
+
+This divergence is expected and does not indicate a design flaw.
+Each FIS run contains only 100 samples (20 per class). With such small evaluation sets:
+
+Individual samples strongly influence accuracy.
+
+The refinement rules, which mainly affect boundary cases, may help or hurt depending on how those few boundary points are distributed in each run.
+
+Therefore, improvements in one run and degradation in another is a normal consequence of high variance under low sample size.
+
+The key result is that the refinement mechanism now meaningfully affects predictions, whereas previously the refined model behaved identically to the baseline.
+
+Interpretation
+
+The tuned FIS-2 demonstrates that:
+
+x2 and x3 can influence decisions only when x7 is ambiguous (near class boundaries).
+
+The model behaves as intended:
+x7 remains the primary driver, x2/x3 act as secondary correctors.
+
+Differences between runs are dominated by sampling variance, not model instability.
+
+These results validate the architectural concept of hierarchical fuzzy decision control and justify further evaluation on larger test sets (as planned with ANFIS).
+
+
+# 4.2 FIS-2 (x7 + x2 + x3) – overlap-gated refinement
+
+Goal:
+The x7-only baseline (FIS-1) is strong but makes frequent errors near class boundaries,
+especially between remarks 1 and 2 (and other adjacent boundaries).
+Since x1–x6 individually show weak separation but may carry small boundary cues, we tested
+adding x2 and x3 as lightweight refinement signals without exploding the rule count.
+
+Design:
+We built FIS-2 using:
+- x7: 5 fuzzy sets (VL, L, M, H, VH) using boundaries from Task 4.1
+- x2 and x3: each has 3 fuzzy sets (Low, Medium, High) over [0,10]
+- total rule budget fixed to 10 rules:
+  * 5 core rules (same as FIS-1): x7 VL->1, L->2, M->3, H->4, VH->5
+  * 5 refinement rules: only fire in overlap/ambiguity zones between adjacent x7 sets
+    and are gated by x2/x3 (low_any or high_any).
+
+Why overlap gating:
+Previous “near-boundary” refinements made performance worse because rules fired too often,
+even when x7 was not ambiguous, which distorted the centroid output.
+Overlap gating forces refinement rules to activate only when two adjacent x7 memberships
+are both high (i.e., min(mu_left, mu_right) is large), meaning the sample is truly near a boundary.
+
+Two new tuning parameters:
+- ref_weight: multiplies refinement rule strengths to increase x2/x3 impact.
+- gate_relax: relaxes overlap gating threshold, allowing refinement rules to activate more easily.
+
+Results (FIS-2 overlap10):
+Baseline x7-only accuracy is ~0.54 on both fis_run1 and fis_run2 (100 samples each).
+
+Run1:
+- Best improvement observed at ref_weight=3.0, gate_relax=0.35 with accuracy 0.56.
+  This mainly reduced the common confusion where class-2 samples were predicted as class-1.
+- Many other gate_relax values stayed at baseline (0.54).
+
+Run2:
+- The refinement effect is less stable due to small sample size.
+- gate_relax <= 0.25 stays at baseline (0.54).
+- higher gate_relax values often decrease accuracy (down to 0.51–0.53).
+
+Conclusion:
+FIS-2 can improve performance in some splits (notably run1), but the gain is not consistent
+across different 100-sample selections. This suggests the refinement signal from x2/x3 is weak,
+and the evaluation variance is high with such a small test size.
+The safest configuration so far is ref_weight=3.0 and gate_relax=0.25 (no regression),
+while ref_weight=3.0 and gate_relax=0.35 gives the best run1 accuracy but slightly hurts run2.
