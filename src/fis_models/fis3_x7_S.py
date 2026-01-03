@@ -114,7 +114,10 @@ def infer_fis3(df, mode="overlap10", ref_weight=1.0, gate_relax=0.25, b12=10.5, 
     # crisp  – weighted average of class centers
     centers = np.array([1,2,3,4,5], dtype=float)
     denom = scores.sum(axis=1)
-    crisp = np.where(denom > 0, (scores * centers).sum(axis=1) / denom, 3.0)
+    num = (scores * centers).sum(axis=1)
+    crisp = np.full(len(df), 3.0, dtype=float)
+    mask = denom > 0
+    crisp[mask] = num[mask] / denom[mask]
 
     pred = np.argmax(scores, axis=1) + 1
     return pred, np.round(crisp, 3)

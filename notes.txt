@@ -739,3 +739,92 @@ The remaining major errors are concentrated at:
 
 These are consistent with x7 boundary overlap behavior and may require
 future directional refinement or boundary tuning.
+
+
+# 4.4 FIS-3 (x7 + S) – Hierarchical Refinement with Boundary Calibration
+
+Motivation:
+While FIS-2 introduced x2 and x3 as refinement signals, their impact remained limited due to
+their weak individual correlation with remarks. To better exploit the collective information
+contained in x1–x6, we defined a new aggregate variable:
+
+S = mean(x1, x2, x3, x4, x5, x6)
+
+This compresses six weak but consistent signals into a single smoother control variable,
+allowing FIS-3 to refine decisions in ambiguous x7 regions without increasing rule complexity.
+
+Design:
+FIS-3 uses:
+- x7: 5 fuzzy sets (VL, L, M, H, VH)
+- S: 3 fuzzy sets (Low, Medium, High)
+- total 10 rules:
+  * 5 core rules: identical to FIS-1 baseline
+  * 5 overlap-gated refinement rules using S
+
+The overlap-gated mechanism is identical to FIS-2:
+refinement rules only activate in regions where adjacent x7 memberships overlap,
+preventing unnecessary interference in confident regions.
+
+Final tuned configuration:
+- mode = overlap10
+- ref_weight = 6.0
+- gate_relax = 0.25
+- calibrated x7 boundaries:
+    b12 = 10.5
+    b23 = 19.5
+    b34 = 28.5
+    b45 = 36.0
+
+The b34 and b45 boundaries were calibrated through controlled sweeps.
+Increasing b45 reduces false class-5 dominance and stabilizes the 4|5 boundary,
+while a slight increase in b34 improves separation between classes 3 and 4.
+
+Results:
+
+FIS-3 (final configuration)
+
+fis_run1:
+Accuracy = 0.57
+Confusion matrix:
+true\pred   1   2   3   4   5
+1         15   5   0   0   0
+2          5  15   0   0   0
+3          0   7   7   5   1
+4          0   0   7   7   6
+5          0   0   1   6  13
+
+fis_run2:
+Accuracy = 0.58
+Confusion matrix:
+true\pred   1   2   3   4   5
+1         13   7   0   0   0
+2          3  17   0   0   0
+3          0   5   6   8   1
+4          0   0   3   7  10
+5          0   0   1   4  15
+
+Interpretation:
+FIS-3 achieves the highest overall performance among all fuzzy models tested.
+Compared to the x7-only baseline (≈0.54), FIS-3 improves accuracy by approximately +0.03–0.04
+while preserving full interpretability and a compact rule base.
+
+The S variable provides effective secondary control:
+- x7 remains the dominant decision variable.
+- S stabilizes decisions specifically in boundary regions.
+- Calibration of b34 and b45 significantly reduces destructive interference between classes 4 and 5.
+
+Due to the very small evaluation size (100 samples per run),
+minor variations across runs are expected.
+However, the final FIS-3 configuration yields the best average performance
+and the most stable confusion structure across both splits.
+
+Conclusion:
+FIS-3 demonstrates that hierarchical fuzzy control using:
+  primary variable (x7),
+  aggregated secondary signal (S),
+  overlap-gated refinement,
+  and calibrated membership boundaries
+produces the strongest and most reliable fuzzy classifier in this study.
+
+This validates the proposed fuzzy architecture and motivates the transition
+to ANFIS training for large-scale evaluation.
