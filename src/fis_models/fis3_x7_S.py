@@ -37,11 +37,8 @@ def clip01(v):
     return np.minimum(1.0, np.maximum(0.0, v))
 
 # ---------- FIS-3 ----------
-def compute_memberships_x7(x7):
-    # boundaries from your notes
-    b12, b23, b34, b45 = 10.5, 19.5, 28.0, 34.0
+def compute_memberships_x7(x7, b12=10.5, b23=19.5, b34=28.0, b45=34.0):
 
-    # simple choices consistent with your earlier idea
     VL = trap(x7, 0.0, 0.0, 6.0, b12)
     L  = tri(x7, b12, 15.0, b23)
     M  = tri(x7, b23, 24.0, b34)
@@ -57,11 +54,11 @@ def compute_memberships_S(S):
     High = trap(S, 5.0, 7.5, 10.0, 10.0)
     return {"Low": Low, "Med": Med, "High": High}
 
-def infer_fis3(df, mode="overlap10", ref_weight=1.0, gate_relax=0.25):
+def infer_fis3(df, mode="overlap10", ref_weight=1.0, gate_relax=0.25, b12=10.5, b23=19.5, b34=28.0, b45=34.0):
     x7 = df["x7"].to_numpy(dtype=float)
     S  = df["S"].to_numpy(dtype=float)
 
-    mx7 = compute_memberships_x7(x7)
+    mx7 = compute_memberships_x7(x7, b12=b12, b23=b23, b34=b34, b45=b45)
     mS  = compute_memberships_S(S)
 
     # overlaps (ambiguity zones)
@@ -70,7 +67,7 @@ def infer_fis3(df, mode="overlap10", ref_weight=1.0, gate_relax=0.25):
     over34 = np.minimum(mx7["M"],  mx7["H"])
     over45 = np.minimum(mx7["H"],  mx7["VH"])
 
-    # optional relaxed gating (same spirit as your FIS-2 tweak)
+    # optional relaxed gating (same motivation as FIS-2 tweak)
     # side_strength = max(left,right), so overlap gate can be boosted
     def relaxed_gate(over, left, right):
         side = np.maximum(left, right)
@@ -83,7 +80,7 @@ def infer_fis3(df, mode="overlap10", ref_weight=1.0, gate_relax=0.25):
 
     # We build a simple "class score" aggregation:
     # each rule contributes firing_strength to its target class.
-    # Final pred is argmax of class scores (ties -> lower class).
+    # Final pred is argmax of class scores (ties to lower class).
     scores = np.zeros((len(df), 5), dtype=float)
 
     # core rules
@@ -114,7 +111,7 @@ def infer_fis3(df, mode="overlap10", ref_weight=1.0, gate_relax=0.25):
         # 10) over45 AND S High -> 5
         add_rule(4, np.minimum(g45, mS["High"]))
 
-    # crisp (optional) – weighted average of class centers
+    # crisp  – weighted average of class centers
     centers = np.array([1,2,3,4,5], dtype=float)
     denom = scores.sum(axis=1)
     crisp = np.where(denom > 0, (scores * centers).sum(axis=1) / denom, 3.0)
@@ -139,6 +136,10 @@ def main():
     ap.add_argument("--mode", choices=["core5", "overlap10"], default="overlap10")
     ap.add_argument("--ref_weight", type=float, default=1.0)
     ap.add_argument("--gate_relax", type=float, default=0.25)
+    ap.add_argument("--b12", type=float, default=10.5, help="x7 boundary between classes 1|2")
+    ap.add_argument("--b23", type=float, default=19.5, help="x7 boundary between classes 2|3")
+    ap.add_argument("--b34", type=float, default=28.0, help="x7 boundary between classes 3|4")
+    ap.add_argument("--b45", type=float, default=34.0, help="x7 boundary between classes 4|5")
     args = ap.parse_args()
 
     inp = Path(args.input)
@@ -149,8 +150,16 @@ def main():
         df["S"] = df[["x1","x2","x3","x4","x5","x6"]].mean(axis=1)
 
     y_true = df["remarks"].astype(int).to_numpy()
-    y_pred, crisp = infer_fis3(df, mode=args.mode, ref_weight=args.ref_weight, gate_relax=args.gate_relax)
-
+    y_pred, crisp = infer_fis3(
+    df,
+    mode=args.mode,
+    ref_weight=args.ref_weight,
+    gate_relax=args.gate_relax,
+    b12=args.b12,
+    b23=args.b23,
+    b34=args.b34,
+    b45=args.b45,
+)
     acc = (y_pred == y_true).mean()
 
     print(f"\n=== FIS-3 (x7 + S) mode={args.mode} ===")
@@ -165,7 +174,10 @@ def main():
     out_dir = Path("results/fis_results/fis-3")
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    tag = f"fis3_x7_S_{args.mode}_w{args.ref_weight}_g{args.gate_relax}"
+    tag = (
+    f"fis3_x7_S_{args.mode}_w{args.ref_weight}_g{args.gate_relax}"
+    f"_b12{args.b12}_b23{args.b23}_b34{args.b34}_b45{args.b45}"
+)
     cm_path = out_dir / f"confusion_{inp.stem}_{tag}.csv"
     pred_path = out_dir / f"predictions_{inp.stem}_{tag}.csv"
 

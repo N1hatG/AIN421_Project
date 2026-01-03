@@ -664,3 +664,78 @@ Next steps:
 - Run a ref_weight sweep (stronger S influence) while keeping gate_relax fixed.
 - If predictions remain unchanged across ref_weight, instrument the code to verify whether S refinement
   rules ever fire and how frequently denom==0 occurs.
+
+
+FIS-3 ref_weight sweep (gate_relax fixed at 0.25, mode=overlap10)
+
+Run1:
+- ref_weight ∈ {1.0, 1.5, 2.0, 2.5, 3.0, 3.5} -> Acc = 0.54 (no change)
+- ref_weight = 4.0 -> Acc = 0.55 (small improvement; likely 1 sample flip)
+
+Run2:
+- ref_weight ∈ {1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0} -> Acc = 0.51 (no change)
+
+Interpretation:
+- FIS-3 is largely insensitive to both gate_relax and ref_weight across most tested values.
+- This suggests that the S-based overlap refinement rules are either rarely firing, or their contributions
+  are dominated by the x7 core rules under Mamdani aggregation + defuzzification.
+- Only at an extreme ref_weight (4.0) did run1 show a minor improvement, while run2 remained unchanged.
+
+Next step:
+- Perform a stress test with larger ref_weight values (e.g., 6–10) to confirm whether S refinement can
+  influence outputs at all.
+- Add a small debug print in the code to measure how often refinement rules fire and how often denom==0 occurs.
+
+
+# 4.4 FIS-3 (x7 + S) – overlap10 refinement with stress-test ref_weight
+
+Initial observation:
+With gate_relax sweeps (g ∈ {0.00..0.65}) at ref_weight=1.0, FIS-3 produced identical
+confusion matrices and accuracy on both runs:
+- run1: 0.54
+- run2: 0.51
+This suggested S-based refinement was too weak to affect final decisions.
+
+Stress-test (increase ref_weight, keep gate_relax=0.25):
+Run1 (overlap10, g=0.25):
+- w=6.0  -> Acc = 0.58  (major improvement)
+- w=10.0 -> Acc = 0.57  (slightly below w=6.0)
+
+Run2 (overlap10, g=0.25):
+- w=6.0  -> Acc = 0.55  (improvement)
+- w=10.0 -> Acc = 0.55  (same as w=6.0)
+
+Interpretation:
+- S refinement does work, but only becomes effective when ref_weight is sufficiently large.
+- w=6.0 appears to be a “sweet spot”: improves both runs without over-dominating x7.
+- Very large weights (e.g., 10.0) can start pulling some mid-class decisions (notably class 3)
+  toward neighboring classes, causing slight regression on run1.
+
+Next step:
+- Run a finer ref_weight sweep around the sweet spot (e.g., w ∈ {4,5,6,7,8}) at gate_relax=0.25
+  and select the best average accuracy across run1 and run2.
+
+# 4.4.1 Boundary Impact Analysis (FIS-3, w=6.0)
+
+The strongest improvement from introducing S appears at the 1|2 boundary.
+
+At w=6.0:
+
+Run1:
+- Class 2 accuracy improved to 15/20 (75%)
+- Previously class 2 was heavily confused with class 1.
+
+Run2:
+- Class 2 accuracy improved to 17/20 (85%)
+- The collapse of class 2 into class 1 is largely eliminated.
+
+This confirms the original hypothesis:
+S acts as an effective refinement signal specifically in ambiguous low-score regions,
+while preserving the dominant ordering imposed by x7.
+
+The remaining major errors are concentrated at:
+- class 3 ↔ class 4
+- class 4 ↔ class 5
+
+These are consistent with x7 boundary overlap behavior and may require
+future directional refinement or boundary tuning.
