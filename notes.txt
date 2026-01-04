@@ -1146,3 +1146,16 @@ Iter-2 run – identical except run_name iter2 and train/test file paths.
   – ridge = {1e-4, 1e-5}
 -Expectation: accuracy ~0.97 with only 15 rules – trades 2 pp for a >10× smaller rule base.
 
+
+
+| Model                     | Inputs & MF counts                     | Total rule count              | Notes                                                        |
+| ------------------------- | -------------------------------------- | ----------------------------- | ------------------------------------------------------------ |
+| **FIS-1**  (x7 only)      | x7 → **5**  (VL, L, M, H, VH)          | 5                             | pure baseline, no secondary inputs                           |
+| **FIS-2**  (x7 + x2 + x3) | x7 → **5**  · x2 → **3**  · x3 → **3** | 10 (core 5 + 5 overlap-gated) | “overlap-gated” refinement; no extra boundary MFs were added |
+| **FIS-3**  (x7 + S)       | x7 → **5**  · S  → **3**               | 10 (core 5 + 5 overlap-gated) | S = mean(x1…x6)                                              |
+| **ANFIS-x7**              | x7 → **5**                             | 5                             | Gaussian MFs; first-order TS consequents                     |
+| **ANFIS-7D**              | x1–x6 → **2 each**  · x7 → **3**       | 2⁶ × 3 = **192**              | (Low/High for weak features, Low/Med/High for x7)            |
+| **ANFIS-(S + x7)**        | S → **3**  · x7 → **5**                | 3 × 5 = **15**                | same MF-names as FIS-3 but Gaussian & trainable              |
+
+
+deep note:Δc / Δs = 0.00 e+00 => Our progress logger is bugged. We make new “copies” after the update, so the diff is always 0. Parameters are changing; we’re just not measuring it.

@@ -165,7 +165,7 @@ def solve_consequents(X: np.ndarray, y: np.ndarray,
 def train_generic(X_tr, y_tr, X_te, y_te,
                   mf_counts: List[int], epochs:int, lr:float, ridge:float,
                   sigma_mult:float, seed:int,
-                  thr_mode:str, patience:int|None, min_delta:float, monitor:str):
+                  thr_mode:str, patience:int|None, min_delta:float, monitor:str,thr_refresh):
     rng = np.random.default_rng(seed)
     N,D = X_tr.shape
     c_list, s_list = init_mfs_quantiles(X_tr, mf_counts, sigma_mult)
@@ -191,8 +191,8 @@ def train_generic(X_tr, y_tr, X_te, y_te,
     fixed_thr = round_thr
 
     for ep in range(1, epochs+1):
-        if thr_mode=="optimize" and ep==3:
-            y_hat_tmp,_,_,_ = forward(X_tr,c_list,s_list,a,b,rule_tbl)
+        if thr_mode=="optimize" and (ep == 3 or (thr_refresh and ep % thr_refresh == 0)):
+            y_hat_tmp, *_ = forward(X_tr, c_list, s_list, a, b, rule_tbl)
             fixed_thr = optimise_thr(y_hat_tmp, y_tr)
 
 
@@ -234,16 +234,16 @@ def train_generic(X_tr, y_tr, X_te, y_te,
                 delta_c[k][j] += np.sum(g_rule[:,m] * fac_c)
                 delta_s[k][j] += np.sum(g_rule[:,m] * fac_s)
 
+        c_prev_all = [ci.copy() for ci in c_list]
+        s_prev_all = [si.copy() for si in s_list]
+
         for k in range(D):
-            c_prev, s_prev = c_list[k].copy(), s_list[k].copy()
             c_list[k] -= lr * delta_c[k]
             s_list[k] -= lr * delta_s[k]
             s_list[k]  = clip_sigmas(s_list[k])
-        dc = np.mean([np.mean(np.abs(c_list[k]-c_prev))
-                      for k,c_prev in enumerate([c.copy() for c in c_list])])
-        ds = np.mean([np.mean(np.abs(s_list[k]-s_prev))
-                      for k,s_prev in enumerate([s.copy() for s in s_list])])
-
+        dc = np.mean([np.mean(np.abs(c_list[k] - c_prev_all[k])) for k in range(D)])
+        ds = np.mean([np.mean(np.abs(s_list[k] - s_prev_all[k])) for k in range(D)])
+        
         if ep == 1 or ep % 5 == 0 or ep == epochs:
             print(f"[{time.strftime('%H:%M:%S')}] "
                   f"ep {ep:3d}/{epochs} │ "
@@ -299,6 +299,10 @@ def main():
     p.add_argument("--patience", type=int)
     p.add_argument("--min_delta", type=float, default=0.0)
     p.add_argument("--monitor", choices=["mse","acc"], default="mse")
+
+    p.add_argument("--thr_refresh", type=int, default=5,
+               help="re-optimise thresholds every N epochs (0 = only once)")
+    
     args = p.parse_args()
 
 
@@ -321,7 +325,7 @@ def main():
         epochs    = args.epochs,
         lr=args.lr,ridge=args.ridge,sigma_mult=args.sigma_mult,seed=args.seed,
         thr_mode=args.thresholds,
-        patience=args.patience,min_delta=args.min_delta,monitor=args.monitor)
+        patience=args.patience,min_delta=args.min_delta,monitor=args.monitor, thr_refresh=args.thr_refresh)
 
 
     out_base = Path(args.out_dir)/args.run_name/args.model_name
