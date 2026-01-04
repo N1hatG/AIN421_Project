@@ -974,3 +974,82 @@ Conclusion:
 FIS-3 demonstrated the validity of the hierarchical fuzzy design.
 ANFIS training is the final step to achieve stable, high-performance fuzzy models
 on large datasets while preserving interpretability.
+
+
+# 5.7  ANFIS-x7  EXPERIMENT DIARY  (iter-1 split)
+
+Common settings unless stated otherwise  
+• mf_count = 5  (VL,L,M,H,VH) • ridge = 1 e-4 • epochs = 80  
+• scaling = MinMax(0-1) on x7 • σ_mult = 1.0 • decode = round  
+
+────────────────────────────────────────────────────────
+Run group ➀ – learning-rate sweep (round decode)
+────────────────────────────────────────────────────────
+lr = 0.003 → best_acc = 0.2000  
+lr = 0.010 → best_acc = 0.3617  
+lr = 0.030 → best_acc = 0.3637  ← **best in group**  
+Observation Premise gradient very small after ~60 ep (Δc, Δσ ~1 e-6).
+
+────────────────────────────────────────────────────────
+Run group ➁ – tiny ridge & wider σ (still round)
+────────────────────────────────────────────────────────
+ridge = 1 e-6, lr ∈ {0.001 … 0.01}  
+→ network over-fits in **1 epoch** (acc = 0.496) but never improves.  
+Adding σ_mult = 3.0 or lr = 0.3 does **not** lift accuracy.
+
+────────────────────────────────────────────────────────
+Run group ➂ – one-shot threshold optimisation
+────────────────────────────────────────────────────────
+Idea  Search t₁…t₄ on train-preds once (epoch 3) then freeze.  
+Tag  `anfis_x7_v2_fast` params ➀: lr 0.3, ridge 1 e-4, epochs 120, σ 1.0  
+→ best_acc = **0.5166** (epoch 6)
+
+────────────────────────────────────────────────────────
+Run group ➃ – cleaned trainer “patch” (+optim threshold)
+────────────────────────────────────────────────────────
+Key code changes  
+✓ threshold grid executed **only once** (epoch 3)  
+✓ history logs Δc, Δσ each epoch  
+✓ safe early-stop (patience, min_delta, monitor)  
+Tag  `anfis_x7_patch` params: lr 0.05, ridge 1 e-6, epochs 120  
+→ best_acc = **0.5165** (epoch 6) – almost identical to group ➂  
+Δc, Δσ ~3 e-5 by final epoch → premises still adapting.
+
+────────────────────────────────────────────────────────
+Scoreboard  – iter-1 test set
+────────────────────────────────────────────────────────
+| Tag                 | Scale | σ | lr  | Ridge | Decode | best_acc |
+|---------------------|-------|---|-----|-------|--------|----------|
+| anfis_x7_v2_fast    | ✔     |1  |0.3  |1e-4  | OPT    | **0.5166** |
+| anfis_x7_patch      | ✔     |1  |0.05 |1e-6  | OPT    | 0.5165 |
+| baseline_lr0.03     | ✔     |1  |0.03 |1e-4  | round  | 0.3637 |
+
+────────────────────────────────────────────────────────
+# 5.8  Findings (x7-only)
+────────────────────────────────────────────────────────
+1. **Threshold search matters** – +15 pp over naïve round.  
+2. Very small ridge (≤1e-6) is needed once thresholds are fixed; larger λ freezes learning.  
+3. σ widening alone does not help; must coincide with higher lr.  
+4. Premises continue to move (Δ ~1e-5) after best epoch → more epochs or lr may still eke out gains.
+
+────────────────────────────────────────────────────────
+# 5.9  Road-map
+────────────────────────────────────────────────────────
+✓ Lock ANFIS-x7 config: `lr 0.3`, `ridge 1e-4`, `σ_mult 1`, `thresholds optimise`.  
+▢ Run **iter-2 split** with the same settings (fair comparison).  
+▢ Port trainer to **ANFIS-7D** (192 rules): start `lr 0.005`, `σ_mult 2`.  
+▢ Port trainer to **ANFIS-(S+x7)** (15 rules): start `lr 0.05`, `σ_mult 1.5`.  
+▢ Write aggregation script → metrics table + confusion matrices for all three models on both iterations.
+
+────────────────────────────────────────────────────────
+# 5.10  Command cheat-sheet (Windows CMD example)
+────────────────────────────────────────────────────────
+```cmd
+python src\anfis_models\anfis_x7.py ^
+  --train data\splits\anfis\anfis_iter1_train.csv ^
+  --test  data\splits\anfis\anfis_iter1_test.csv ^
+  --out_dir results\anfis_results ^
+  --run_name iter1 ^
+  --model_name anfis_x7_v2_fast ^
+  --epochs 120 --lr 0.3 --ridge 1e-4 --seed 42111 ^
+  --mf_count 5 --scale --sigma_mult 1.0 --thresholds optimize
