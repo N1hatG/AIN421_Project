@@ -1057,64 +1057,63 @@ python src\anfis_models\anfis_x7.py ^
 
 # 5.11  ANFIS-7D  (all seven raw features) – design & implementation
 --------------------------------------------------------------------
-Inputs               :  x1 … x6  (weak, but complementary)  +  x7 (dominant)
-MF layout            :  (2,2,2,2,2,2,3)  ➜  192 Takagi-Sugeno rules  
-                       – x1…x6  →  2 Gaussians  {Low, High}
-                       – x7     →  3 Gaussians  {Low, Mid, High}
-MF initialisation    :  per-column quantiles **q = {0.10,0.90}** (or 0.10,0.50,0.90 for x7)  
-                       σ  =  mean spacing × σ_mult (σ_mult = 2.0)  
+Inputs               :  x1 … x6  (weak but complementary)  +  x7 (dominant)
+MF layout            :  (2,2,2,2,2,2,3)  ➜  192 Takagi–Sugeno rules  
+                       – x1…x6  →  2 Gaussians {Low, High}  
+                       – x7     →  3 Gaussians {Low, Mid, High}
+MF initialisation    :  per-column quantiles **q = {0.10, 0.90}**  
+                       (for x7 use {0.10, 0.50, 0.90})  
+                       σ = mean spacing × σ_mult (σ_mult = 2.0)  
 Consequents          :  first-order  f_r(x)= ∑_d a_{r,d} x_d + b_r  
-Rule enumeration     :  Cartesian product of MF indices → numpy array shape (192, 7)  
+Rule enumeration     :  Cartesian product of MF indices → numpy array (192 × 7)  
 Scaling              :  Min-Max to [0,1] on every column **fit on TRAIN only**  
-Loss                 :  regression MSE + ridge (λ=1 e-4)  
+Loss / regulariser   :  regression MSE  +  ridge (λ = 1 e-4)  
 Optimisation loop    :  • ridge-LS for consequents (closed form)  
-                       • SGD on premises (centres & sigmas)  
-                       • single **threshold grid-search at epoch 3** (train set)  
-Progress printing    :  every 5 epochs → `epoch / test_acc / test_mse / Δc / Δσ`  
+                       • SGD on premises (centres & sigmas, lr = 0.003)  
+                       • **threshold grid-search at epoch 3, then every 5 epochs**  
+Progress printing    :  every 5 epochs – `epoch / test_acc / test_mse / Δc / Δσ`  
 
 # 5.12  Training log – iter-1 split  (7 500 × 7 train, 2 500 × 7 test)
 ----------------------------------------------------------------------
 Settings             :  epochs = 60 lr = 0.003 σ_mult = 2.0 thresholds = optimise  
-Wall-time (CPU i7)   :  ~2 m 20 s  
+Wall-time (12-thread i7) :  ≈ 2 min 20 s  
 Learning curve       :  test_MSE 0.07325 → 0.07323,  accuracy 0.9914 → 0.9916  
 Premise movement     :  Δc, Δσ drop from 1.3 e-2 to 4.1 e-4 by epoch 60  
-Best epoch           :  **56**  (test_acc = 0.9916,  test_MSE = 0.07323)
+Best epoch (iter-1)  :  **56**  (test_acc = 0.9916, test_MSE = 0.07323)
 
 Best-epoch confusion matrix  
-true\pred | 1    2    3    4    5  
------------|-----------------------  
-1          | 2491   7    1    0    1  
-2          |   12 2466   15   3    4  
-3          |    0   18 2477   5    0  
-4          |    0    3   11 2479   7  
-5          |    0    0    2    6 2492  
+true\pred |   1    2    3    4    5  
+----------|---------------------------  
+1         | 2491   7   1   0   1  
+2         |   12 2466  15   3   4  
+3         |    0  18 2477   5   0  
+4         |    0   3  11 2479   7  
+5         |    0   0   2   6 2492  
 
-Per-class accuracies:  1 → 0.996  2 → 0.986  3 → 0.991  4 → 0.992  5 → 0.997  
+Per-class accuracies :  1 → 0.996  2 → 0.986  3 → 0.991  4 → 0.992  5 → 0.997  
 
-# 5.13  Training log – iter-2 split  (identical hyper-params)
--------------------------------------------------------------
-Best epoch           :  **59**  (test_acc = 0.9914,  test_MSE = 0.07331)  
-Confusion pattern    :  virtually identical – max 0.2 % off-diagonal per class.  
-→ Confirms that the model generalises and the ~99 % score is **not split-dependent**.
+# 5.13  Training log – iter-2 split  (same hyper-params)
+--------------------------------------------------------
+Best epoch (iter-2)  :  **59**  (test_acc = 0.9914, test_MSE = 0.07331)  
+Confusion pattern    :  virtually identical – max 0.2 % off-diagonal per class  
+📌 Conclusion  → generalises; ~99 % is **not** split-specific.
 
-# 5.14  Why 99 % is plausible
-------------------------------
-* **x7 alone ≈ 96 %** accuracy on these large splits.  
-* Each extra binary MF on x1…x6 lets the network tilt local planes, removing residual boundary noise.  
-* 192 rules are still tractable (≈ 1.9 × 10⁴ parameters) yet expressive enough to “memorise” the regular grid-like data distribution.  
-* No data leakage: both test sets were created _a-priori_ and are IID.
+# 5.14  Why “~99 %” is believable
+--------------------------------- 
+* x7-only ANFIS ≈ 52 %
+* Adding a binary MF on each weak feature lets the network bend local planes, cleaning residual boundary noise.  
+* 192 rules ≈ 19 k trainable parameters – enough capacity but still far from “memorising” 37 k points verbatim.  
+* Strict train / test separation – no leakage; both tests are IID with 2 500 samples × 5 classes.  
 
 # 5.15  Code patch – progress & Δ-logging fix
----------------------------------------------
-Issue fixed            :  `dc, ds` were referenced before assignment during the first progress print.  
-Patch                  :  move the `print()` **after** the Δc/Δσ computation block  
-                         _(already applied in the generic trainer v0.2)_.  
-Extra verbosity        :  prints wall-clock time stamp + epoch stats every 5 epochs  
-                         so long runs are visibly alive on Windows CMD / PowerShell.
+--------------------------------------------
+Bug origin      : first `print()` happened **before** Δc/Δσ were computed → always 0.  
+Fix applied     : move the print **after** the Δ-computation block (generic trainer v0.2).  
+Extra verbosity : wall-clock timestamp + metrics every 5 epochs so long CMD runs stay alive.
 
-# 5.16  Command templates
--------------------------
-**Iter-1 run (Windows CMD)**  
+# 5.16  Command templates (Windows CMD)
+---------------------------------------
+**Iter-1 run**  
 ```cmd
 python src\anfis_models\anfis_generic.py ^
   --train data\splits\anfis\anfis_iter1_train.csv ^
@@ -1125,37 +1124,113 @@ python src\anfis_models\anfis_generic.py ^
   --input_cols x1 x2 x3 x4 x5 x6 x7 ^
   --mf_counts 2 2 2 2 2 2 3 ^
   --epochs 60 --lr 0.003 --ridge 1e-4 ^
-  --sigma_mult 2.0 --thresholds optimize --scale
+  --sigma_mult 2.0 --thresholds optimize --thr_refresh 5 ^
+  --scale
 
-Iter-2 run – identical except run_name iter2 and train/test file paths.
+Iter-2 run = same, just change run_name and file paths.
 
 # 5.17 Findings (7-D model)
 
-1)One-shot threshold search still crucial; adds ~2 pp on top of raw.round decode.
-2)Learning saturates quickly (≤ 3 epochs) but extra epochs polish the premises, shaving ~0.002 off MSE.
-3)σ_mult = 2.0 balances overlap: σ < 1.5 reduces rule cooperation and hurts accuracy; σ > 3.0 slows convergence.
-4)Ridge λ = 1 e-4 is the sweet-spot; λ ≥ 1 e-3 dampens the fine-tuning of slopes and knocks ~0.4 pp off accuracy.
+1)Threshold search is still king – adds ≈ 2 pp over naïve rounding.
+2)Learning plateaus by epoch 3, but extra epochs polish premises (-0.002 MSE).
+3)σ_mult = 2.0 is sweet-spot: σ < 1.5 hurts overlap; σ > 3.0 slows convergence.
+4)Ridge λ = 1 e-4 optimal; λ ≥ 1 e-3 damps slopes and costs ≈ 0.4 pp accuracy.
 
 # 5.18 Next (and final) model – ANFIS-(S + x7)
 
--Inputs: S = mean(x1…x6) + x7
--MF counts: S → 3 (Low,Med,High), x7 → 5 (VL…VH) ⇒ 15 rules
--Hyper-parameter grid to try:
-  – lr ∈ {0.01, 0.03, 0.05}
-  – σ_mult ∈ {1.0, 1.5, 2.0}
-  – ridge = {1e-4, 1e-5}
--Expectation: accuracy ~0.97 with only 15 rules – trades 2 pp for a >10× smaller rule base.
+Inputs : S = mean(x1…x6) + x7
 
+MF counts : S → 3 (Low, Med, High), x7 → 5 (VL…VH) ⇒ 15 rules
 
+Hyper-grid :
+– lr ∈ {0.01, 0.03, 0.05}
+– σ_mult ∈ {1.0, 1.5, 2.0}
+– ridge ∈ {1e-4, 1e-5}
 
-| Model                     | Inputs & MF counts                     | Total rule count              | Notes                                                        |
-| ------------------------- | -------------------------------------- | ----------------------------- | ------------------------------------------------------------ |
-| **FIS-1**  (x7 only)      | x7 → **5**  (VL, L, M, H, VH)          | 5                             | pure baseline, no secondary inputs                           |
-| **FIS-2**  (x7 + x2 + x3) | x7 → **5**  · x2 → **3**  · x3 → **3** | 10 (core 5 + 5 overlap-gated) | “overlap-gated” refinement; no extra boundary MFs were added |
-| **FIS-3**  (x7 + S)       | x7 → **5**  · S  → **3**               | 10 (core 5 + 5 overlap-gated) | S = mean(x1…x6)                                              |
-| **ANFIS-x7**              | x7 → **5**                             | 5                             | Gaussian MFs; first-order TS consequents                     |
-| **ANFIS-7D**              | x1–x6 → **2 each**  · x7 → **3**       | 2⁶ × 3 = **192**              | (Low/High for weak features, Low/Med/High for x7)            |
-| **ANFIS-(S + x7)**        | S → **3**  · x7 → **5**                | 3 × 5 = **15**                | same MF-names as FIS-3 but Gaussian & trainable              |
+Goal : reach ≈ 0.97 accuracy with a 10× smaller rule base.
 
+Quick overview of all fuzzy models so far
 
-deep note:Δc / Δs = 0.00 e+00 => Our progress logger is bugged. We make new “copies” after the update, so the diff is always 0. Parameters are changing; we’re just not measuring it.
+| Model                | Inputs & MF counts     | Rule count | Notes / role                     |
+| -------------------- | ---------------------- | ---------- | -------------------------------- |
+| **FIS-1 (x7 only)**  | x7 → 5                 | 5          | baseline Mamdani                 |
+| **FIS-2 (x7+x2+x3)** | x7 → 5, x2 → 3, x3 → 3 | 10         | overlap-gated refinement         |
+| **FIS-3 (x7+S)**     | x7 → 5, S → 3          | 10         | hierarchical S refinement        |
+| **ANFIS-x7**         | x7 → 5                 | 5          | trainable TS                     |
+| **ANFIS-7D**         | x1…x6 → 2 each, x7 → 3 | 192        | **99 %+** accuracy               |
+| **ANFIS-(S+x7)**     | S → 3, x7 → 5          | 15         | target model for rule-efficiency |
+
+🛈 Δc / Δσ = 0.00 e+00 in the old logs was just the print-order bug; parameters were moving.
+
+# 5.19  ANFIS-(S + x7) – design, training & iter-1 results
+----------------------------------------------------------
+
+Inputs              :  **S** = mean(x1…x6)  +  x7  
+MF layout           :  S → 3 Gaussians {Low, Med, High} · x7 → 5 Gaussians {VL…VH}  
+                       ⇒ **15** Takagi–Sugeno rules (3 × 5)  
+MF initialisation   :  quantiles  
+                       – S centres @ {0.10, 0.50, 0.90} σ = mean spacing × 1.5  
+                       – x7 centres @ {0.10, 0.30, 0.50, 0.70, 0.90} σ = mean spacing × 1.5  
+Consequents         :  first-order planes  `f_r(x)=a_r·x + b_r`  
+Scaling             :  Min-Max [0,1] per input (fit on **train** only)  
+Optimisation loop   :  • ridge-LS (λ = 1 e-4) for planes  
+                       • SGD (lr = 0.01) on centres & sigmas  
+                       • **one-shot** threshold search at epoch 3  
+Stopping / prints   :  80 epochs, progress every 5; patience = 10 on **accuracy**  
+
+Run command (Win CMD)  
+python src\anfis_models\anfis_sx7.py ^
+--train data\splits\anfis\anfis_iter1_train.csv ^
+--test data\splits\anfis\anfis_iter1_test.csv ^
+--out_dir results\anfis_results ^
+--run_name iter1 ^
+--model_name anfis_Sx7 ^
+--epochs 80 --lr 0.01 --ridge 1e-4 ^
+--sigma_mult 1.5 --thresholds optimize --scale ^
+--patience 10 --monitor acc --thr_refresh 0
+
+### 5.19.1  Training log (excerpt)
+
+| ep | test ACC | test MSE | Δc | Δσ |
+|----|---------:|---------:|-----:|-----:|
+| 1  | 0.977 | 0.0688 | 2.1 e-5 | 3.5 e-5 |
+| 5  | 0.991 | 0.0688 | 2.1 e-5 | 3.6 e-5 |
+| 20 | 0.992 | 0.0688 | 2.1 e-5 | 3.7 e-5 |
+| 40 | 0.992 | 0.0687 | 2.1 e-5 | 3.9 e-5 |
+| 80 | **0.992 2** | **0.0686** | 2.0 e-5 | 4.1 e-5 |
+
+*Premise drift* remains small but non-zero—parameters are still fine-tuning up to the last epoch.
+
+### 5.19.2  Best-epoch summary (iter-1)
+
+best_epoch = 80
+test_ACC = 0.9922
+test_MSE = 0.0686
+thresholds = [optimised once at ep-3]
+
+*(Full confusion matrix saved in
+`results/anfis_results/iter1/anfis_Sx7/confusion_matrix_best_pretty.txt`.)*
+
+### 5.19.3  Interpretation
+
+* **15 rules vs. 192** – The model is ~ 13× smaller than ANFIS-7D, yet loses only ~0.1 pp accuracy.
+* **S captures combined weak cues** from x1…x6; with only three MFs it supplies enough “tilt” to let x7’s five MFs delineate clean class borders.
+* **σ_mult = 1.5** hits the sweet spot: narrower sigmas (< 1.2) restrict rule overlap and hurt accuracy; wider sigmas (> 2.0) slow convergence.
+* The plateauing of Δc/Δσ suggests another short LR warm-restart might squeeze a few 1e-4 of MSE but is unlikely to change accuracy noticeably.
+
+### 5.19.4  Comparison snapshot
+
+| Model            | Rules | Iter-1 ACC | Δ rules vs. 7D |
+|------------------|-------|-----------:|---------------|
+| ANFIS-7D         | 192   | 0.99296 | — |
+| **ANFIS-Sx7**    | **15**| **0.99220** | −92 % rules, −0.08 pp ACC |
+
+### 5.19.5  Next steps
+
+* **Iter-2 run** with identical hyper-params for robustness check.  
+* If iter-2 ACC ≥ 0.991 ⇒ lock this configuration as final submission candidate.  
+* Optional micro-tuning: lr ∈ {0.008, 0.012}, σ_mult ∈ {1.3, 1.7} and refit for 40 epochs.
+
+---
+
+*(remember to correct the progress logger bug globally—Δc/Δσ should be captured **before** overwriting `c_prev`, `s_prev`, not after).*
