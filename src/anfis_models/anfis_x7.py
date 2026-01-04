@@ -267,132 +267,105 @@ def train_anfis_x7(
         wait = 0
         best_mon = float("inf") if monitor == "mse" else -float("inf")
 
-    for ep in range(1, epochs + 1):
-        c_prev = c.copy()
-        s_prev = s.copy()
+    # ------------------------------------------------------------------
+    thresh_fixed = [1.5, 2.5, 3.5, 4.5]          # default round-decode cut-points
 
-        # forward (current premise)
+    for ep in range(1, epochs + 1):
+
+        # ----------------------------------------------------------
+        # one-time expensive threshold search (epoch 3, optional)
+        # ----------------------------------------------------------
+        if thresholds_mode == "optimize" and ep == 3:
+            print("[init] running one-time threshold search …")
+            # first forward pass with current params
+            yhat_tmp, _, _ = anfis_forward(x_train, c, s, a, b)
+            thresh_fixed = optimize_thresholds(yhat_tmp, y_train)
+            print(f"[init] optimal thresholds = {thresh_fixed}")
+
+        # ----------------------------------------------------------
+        # forward   (premise c,s | consequents a,b from previous step)
+        # ----------------------------------------------------------
         yhat_train, w_train, wbar_train = anfis_forward(x_train, c, s, a, b)
 
-        # hybrid step: solve consequents by ridge LS using current wbar
+        # hybrid step – update consequents (ridge LS)
         a, b = solve_consequents_ridge(x_train, y_train, wbar_train, ridge=ridge)
 
-        # forward again with updated consequents
+        # forward again with fresh consequents
         yhat_train, w_train, wbar_train = anfis_forward(x_train, c, s, a, b)
-        yhat_test, w_test, wbar_test = anfis_forward(x_test, c, s, a, b)
+        yhat_test , _, _                = anfis_forward(x_test , c, s, a, b)
 
-        # thresholds
+        # ------------------------------------
+        # decode to class labels (fast!)
+        # ------------------------------------
         if thresholds_mode == "optimize":
-            th = optimize_thresholds(yhat_train, y_train)
-            ypred_train = apply_thresholds(yhat_train, th)
-            ypred_test = apply_thresholds(yhat_test, th)
+            ypred_train = apply_thresholds(yhat_train, thresh_fixed)
+            ypred_test  = apply_thresholds(yhat_test , thresh_fixed)
         else:
-            th = [1.5, 2.5, 3.5, 4.5]
             ypred_train = round_decode(yhat_train)
-            ypred_test = round_decode(yhat_test)
+            ypred_test  = round_decode(yhat_test)
 
-        tr_mse = mse(y_train, yhat_train)
-        te_mse = mse(y_test, yhat_test)
-        tr_mae = mae(y_train, yhat_train)
-        te_mae = mae(y_test, yhat_test)
+        # ---------- metrics -------------------------------------------------
+        tr_mse = mse (y_train, yhat_train)
+        te_mse = mse (y_test , yhat_test )
+        tr_mae = mae (y_train, yhat_train)
+        te_mae = mae (y_test , yhat_test )
         tr_acc = accuracy(y_train, ypred_train)
-        te_acc = accuracy(y_test, ypred_test)
+        te_acc = accuracy(y_test , ypred_test )
 
-        # gradient for premise params (c,s) on train MSE
-        # y = sum_i wbar_i * (a_i x + b_i)
-        # w_i = exp(-0.5 * ((x-c_i)/s_i)^2)
-        # dw_i/dc_i = w_i * ((x-c_i)/s_i^2)
-        # dw_i/ds_i = w_i * ((x-c_i)^2 / s_i^3)
-        #
-        # y depends on wbar, which depends on all w's. We'll compute dy/dw using quotient rule.
-        # Let S = sum_j w_j
-        # wbar_i = w_i / S
-        # y = sum_i (w_i/S) * f_i
-        # => y = (1/S) * sum_i w_i f_i
-        # dy/dw_k = (f_k*S - sum_i w_i f_i) / S^2 = (f_k - y) / S
-        #
-        # then dy/dc_k = dy/dw_k * dw_k/dc_k, similarly for s_k
-        #
-        S = np.sum(w_train, axis=1, keepdims=True) + 1e-12          # (N,1)
-        f = x_train.reshape(-1, 1) * a.reshape(1, -1) + b.reshape(1, -1)  # (N,M)
-        y = yhat_train.reshape(-1, 1)                                # (N,1)
-        dy_dw = (f - y) / S                                          # (N,M)
+        # ---------- gradient for premise (c, s) -----------------------------
+        S  = np.sum(w_train, axis=1, keepdims=True) + 1e-12
+        f  = x_train.reshape(-1, 1) * a.reshape(1, -1) + b.reshape(1, -1)
+        y  = yhat_train.reshape(-1, 1)
+        dy_dw = (f - y) / S
 
-        # error derivative: dMSE/dy = 2*(yhat - ytrue)/N
-        dL_dy = (2.0 / x_train.shape[0]) * (yhat_train - y_train)     # (N,)
-        dL_dy = dL_dy.reshape(-1, 1)                                  # (N,1)
+        dL_dy = (2.0 / x_train.shape[0]) * (yhat_train - y_train)
+        dL_dy = dL_dy.reshape(-1, 1)
 
-        xcol = x_train.reshape(-1, 1)                                 # (N,1)
-        c_row = c.reshape(1, -1)
-        s_row = s.reshape(1, -1)
+        xcol = x_train.reshape(-1, 1)
+        c_row, s_row = c.reshape(1, -1), s.reshape(1, -1)
 
-        # dw/dc and dw/ds
-        dw_dc = w_train * ((xcol - c_row) / (s_row ** 2))            # (N,M)
-        dw_ds = w_train * (((xcol - c_row) ** 2) / (s_row ** 3))     # (N,M)
+        dw_dc = w_train * ((xcol - c_row) / (s_row ** 2))
+        dw_ds = w_train * (((xcol - c_row) ** 2) / (s_row ** 3))
 
-        # chain
-        dL_dc = np.sum(dL_dy * dy_dw * dw_dc, axis=0)                # (M,)
-        dL_ds = np.sum(dL_dy * dy_dw * dw_ds, axis=0)                # (M,)
+        dL_dc = np.sum(dL_dy * dy_dw * dw_dc, axis=0)
+        dL_ds = np.sum(dL_dy * dy_dw * dw_ds, axis=0)
 
-        # update
-        c = c - lr * dL_dc
-        s = s - lr * dL_ds
-        s = clip_sigmas(s, 1e-3)
+        c_prev, s_prev = c.copy(), s.copy()
+        c -= lr * dL_dc
+        s -= lr * dL_ds
+        s  = clip_sigmas(s, 1e-3)
 
         dc = float(np.mean(np.abs(c - c_prev)))
         ds = float(np.mean(np.abs(s - s_prev)))
 
-        # record
+        # ---------- log history ---------------------------------------------
         hist["epoch"].append(ep)
-        hist["train_mse"].append(tr_mse)
-        hist["test_mse"].append(te_mse)
-        hist["train_mae"].append(tr_mae)
-        hist["test_mae"].append(te_mae)
-        hist["train_acc"].append(tr_acc)
-        hist["test_acc"].append(te_acc)
-        hist["thresholds"].append(th)
-        hist["delta_c"].append(dc)
-        hist["delta_s"].append(ds)
+        hist["train_mse"].append(tr_mse);  hist["test_mse"].append(te_mse)
+        hist["train_mae"].append(tr_mae);  hist["test_mae"].append(te_mae)
+        hist["train_acc"].append(tr_acc);  hist["test_acc"].append(te_acc)
+        hist["thresholds"].append(thresh_fixed)
+        hist["delta_c"].append(dc);        hist["delta_s"].append(ds)
 
-        # best selection: primarily by test_acc, tie-break by test_mse
-        is_better = False
-        if te_acc > best["test_acc"] + 1e-12:
-            is_better = True
-        elif abs(te_acc - best["test_acc"]) <= 1e-12 and te_mse < best["test_mse"] - 1e-12:
-            is_better = True
+        # ---------- best checkpoint -----------------------------------------
+        better = (te_acc > best["test_acc"] + 1e-12) or \
+                (abs(te_acc - best["test_acc"]) <= 1e-12 and te_mse < best["test_mse"] - 1e-12)
 
-        if is_better:
+        if better:
             best.update({
-                "epoch": ep,
-                "test_mse": te_mse,
-                "test_acc": te_acc,
-                "c": c.copy(),
-                "s": s.copy(),
-                "a": a.copy(),
-                "b": b.copy(),
-                "thresholds": list(map(float, th)),
-                "yhat_test": yhat_test.copy(),
+                "epoch": ep, "test_mse": te_mse, "test_acc": te_acc,
+                "c": c.copy(), "s": s.copy(), "a": a.copy(), "b": b.copy(),
+                "thresholds": thresh_fixed.copy(), "yhat_test": yhat_test.copy(),
             })
 
-        # early stopping
+        # ---------- early stopping ------------------------------------------
         if patience is not None:
-            current_mon = te_mse if monitor == "mse" else te_acc
-            improved = False
-            if monitor == "mse":
-                improved = (best_mon - current_mon) >= min_delta
-                if improved:
-                    best_mon = current_mon
-            else:
-                improved = (current_mon - best_mon) >= min_delta
-                if improved:
-                    best_mon = current_mon
-
-            if improved:
-                wait = 0
+            current = te_mse if monitor == "mse" else te_acc
+            if (monitor == "mse"  and best_mon - current >= min_delta) or \
+            (monitor == "acc" and current - best_mon >= min_delta):
+                best_mon, wait = current, 0
             else:
                 wait += 1
                 if wait >= patience:
-                    # stop
                     break
 
     # final evaluation at last epoch state
