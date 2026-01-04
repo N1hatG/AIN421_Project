@@ -13,7 +13,6 @@ import pandas as pd
 
 
 
-# Utils
 def ensure_dir(p: Path) -> None:
     p.mkdir(parents=True, exist_ok=True)
 
@@ -50,10 +49,6 @@ def mae(y_true: np.ndarray, y_hat: np.ndarray) -> float:
     return float(np.mean(np.abs(y_true - y_hat)))
 
 
-<<<<<<< HEAD
-# MinMax scaler (train-only fit)
-=======
->>>>>>> 107037eed2ad7bbd636de1b42cb8c36a1402dbe5
 @dataclass
 class MinMax1D:
     x_min: float
@@ -69,10 +64,7 @@ class MinMax1D:
         return x01 * (self.x_max - self.x_min) + self.x_min
 
 
-<<<<<<< HEAD
-=======
 
->>>>>>> 107037eed2ad7bbd636de1b42cb8c36a1402dbe5
 # y = sum_i w_i * (a_i * x + b_i) / sum_i w_i
 # w_i = exp(-(x-c_i)^2/(2*s_i^2))
 
@@ -117,11 +109,7 @@ def solve_consequents_ridge(x: np.ndarray, y: np.ndarray, wbar: np.ndarray, ridg
     A = Phi.T @ Phi
     A += ridge * np.eye(A.shape[0])
     rhs = Phi.T @ y
-<<<<<<< HEAD
-    theta = np.linalg.solve(A, rhs)  
-=======
     theta = np.linalg.solve(A, rhs) 
->>>>>>> 107037eed2ad7bbd636de1b42cb8c36a1402dbe5
 
     a = theta[0::2]
     b = theta[1::2]
@@ -136,15 +124,6 @@ def init_mfs_quantiles(x_train: np.ndarray,
     centres  : q-quantiles  (5 % … 95 %)
     sigmas   : ½ (min dist to neighbours) x sigma_mult / √(2 ln 2)
     """
-<<<<<<< HEAD
-
-    q = np.linspace(0.05, 0.95, mf_count)
-    centres = np.quantile(x_train, q).astype(float)          # (m,)
-
-    left  = np.roll(centres, 1)
-    right = np.roll(centres, -1)
-
-=======
 
     q = np.linspace(0.05, 0.95, mf_count)
     centres = np.quantile(x_train, q).astype(float)  
@@ -152,17 +131,12 @@ def init_mfs_quantiles(x_train: np.ndarray,
     left  = np.roll(centres, 1)
     right = np.roll(centres, -1)
  
->>>>>>> 107037eed2ad7bbd636de1b42cb8c36a1402dbe5
     d_left  = centres - left
     d_left[0]   = np.inf
     d_right = right - centres
     d_right[-1] = np.inf
     d_min = np.minimum(d_left, d_right)                      
 
-<<<<<<< HEAD
-    # convert to half-width / √(2 ln 2))
-=======
->>>>>>> 107037eed2ad7bbd636de1b42cb8c36a1402dbe5
     sigmas = sigma_mult * d_min / np.sqrt(2 * np.log(2))
     sigmas = clip_sigmas(sigmas, 1e-3)
 
@@ -180,10 +154,6 @@ def optimize_thresholds(y_hat: np.ndarray, y_true: np.ndarray) -> List[float]:
       (t3,t4] -> 4
       >t4 -> 5
     """
-<<<<<<< HEAD
-
-=======
->>>>>>> 107037eed2ad7bbd636de1b42cb8c36a1402dbe5
     q = np.linspace(0.05, 0.95, 60)
     cand = np.quantile(y_hat, q)
     cand = np.unique(np.clip(cand, 1.0, 5.0))
@@ -191,11 +161,7 @@ def optimize_thresholds(y_hat: np.ndarray, y_true: np.ndarray) -> List[float]:
     best_acc = -1.0
     best_t = [1.5, 2.5, 3.5, 4.5]
 
-<<<<<<< HEAD
-    # brute force but small: ~60^4 is too big, so we do nested with pruning:
-=======
     # brute force but small: ~60^4 is too big, so I do nested with pruning:
->>>>>>> 107037eed2ad7bbd636de1b42cb8c36a1402dbe5
     for t1 in cand:
         for t2 in cand[cand > t1]:
             for t3 in cand[cand > t2]:
@@ -222,10 +188,6 @@ def round_decode(y_hat: np.ndarray) -> np.ndarray:
     return np.clip(y_pred, 1, 5)
 
 
-<<<<<<< HEAD
-# Training
-=======
->>>>>>> 107037eed2ad7bbd636de1b42cb8c36a1402dbe5
 def train_anfis_x7(
     x_train: np.ndarray,
     y_train: np.ndarray,
@@ -250,11 +212,6 @@ def train_anfis_x7(
 
     c, s = init_mfs_quantiles(x_train, mf_count, sigma_mult=sigma_mult)
 
-<<<<<<< HEAD
-
-    # First forward with dummy a/b so we can solve consequents properly
-=======
->>>>>>> 107037eed2ad7bbd636de1b42cb8c36a1402dbe5
     a = np.zeros(mf_count, dtype=float)
     b = np.linspace(1.0, 5.0, mf_count, dtype=float)  
 
@@ -287,20 +244,12 @@ def train_anfis_x7(
         wait = 0
         best_mon = float("inf") if monitor == "mse" else -float("inf")
 
-<<<<<<< HEAD
-    thresh_fixed = [1.5, 2.5, 3.5, 4.5]          # default round-decode cut-points
-
-    for ep in range(1, epochs + 1):
-
-        # one-time expensive threshold search (epoch 3, optional)
-=======
     
     thresh_fixed = [1.5, 2.5, 3.5, 4.5]         
 
     for ep in range(1, epochs + 1):
 
 
->>>>>>> 107037eed2ad7bbd636de1b42cb8c36a1402dbe5
         if thresholds_mode == "optimize" and ep == 3:
             print("[init] running one-time threshold search …")
 
@@ -308,22 +257,16 @@ def train_anfis_x7(
             thresh_fixed = optimize_thresholds(yhat_tmp, y_train)
             print(f"[init] optimal thresholds = {thresh_fixed}")
 
-<<<<<<< HEAD
-        # forward   (premise c,s | consequents a,b from previous step)
-=======
->>>>>>> 107037eed2ad7bbd636de1b42cb8c36a1402dbe5
         yhat_train, w_train, wbar_train = anfis_forward(x_train, c, s, a, b)
 
+        # hybrid step – update consequents (ridge LS)
         a, b = solve_consequents_ridge(x_train, y_train, wbar_train, ridge=ridge)
 
+        # forward again with fresh consequents
         yhat_train, w_train, wbar_train = anfis_forward(x_train, c, s, a, b)
         yhat_test , _, _                = anfis_forward(x_test , c, s, a, b)
 
-<<<<<<< HEAD
-        # decode to class labels
-=======
         # decode to class labels 
->>>>>>> 107037eed2ad7bbd636de1b42cb8c36a1402dbe5
         if thresholds_mode == "optimize":
             ypred_train = apply_thresholds(yhat_train, thresh_fixed)
             ypred_test  = apply_thresholds(yhat_test , thresh_fixed)
@@ -331,10 +274,7 @@ def train_anfis_x7(
             ypred_train = round_decode(yhat_train)
             ypred_test  = round_decode(yhat_test)
 
-<<<<<<< HEAD
-=======
 
->>>>>>> 107037eed2ad7bbd636de1b42cb8c36a1402dbe5
         tr_mse = mse (y_train, yhat_train)
         te_mse = mse (y_test , yhat_test )
         tr_mae = mae (y_train, yhat_train)
@@ -384,10 +324,6 @@ def train_anfis_x7(
                 "thresholds": thresh_fixed.copy(), "yhat_test": yhat_test.copy(),
             })
 
-<<<<<<< HEAD
-        
-=======
->>>>>>> 107037eed2ad7bbd636de1b42cb8c36a1402dbe5
         if patience is not None:
             current = te_mse if monitor == "mse" else te_acc
             if (monitor == "mse"  and best_mon - current >= min_delta) or \
@@ -463,6 +399,7 @@ def main():
     train_df = pd.read_csv(args.train)
     test_df = pd.read_csv(args.test)
 
+    # labels must be 1..5 ints
     y_train = train_df["remarks"].to_numpy(dtype=float)
     y_test = test_df["remarks"].to_numpy(dtype=float)
 
