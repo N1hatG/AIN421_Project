@@ -1,0 +1,56 @@
+{
+  "train": "data\\splits\\anfis\\anfis_iter1_train.csv",
+  "test": "data\\splits\\anfis\\anfis_iter1_test.csv",
+  "out_dir": "results\\anfis_results",
+  "run_name": "iter1",
+  "model_name": "anfis_7d_lr0p003",
+  "input_cols": [
+    "x1",
+    "x2",
+    "x3",
+    "x4",
+    "x5",
+    "x6",
+    "x7"
+  ],
+  "mf_counts": [
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    3
+  ],
+  "epochs": 60,
+  "lr": 0.003,
+  "ridge": 0.0001,
+  "sigma_mult": 2.0,
+  "seed": 42111,
+  "scale": true,
+  "thresholds": "optimize",
+  "patience": null,
+  "min_delta": 0.0,
+  "monitor": "mse",
+  "rule_count": 192,
+  "scaler": {
+    "lo": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "hi": [
+      10.0,
+      10.0,
+      10.0,
+      10.0,
+      10.0,
+      10.0,
+      40.0
+    ]
+  }
+}
