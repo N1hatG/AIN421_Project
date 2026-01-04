@@ -12,9 +12,6 @@ import numpy as np
 import pandas as pd
 
 
-# ----------------------------
-# Utils
-# ----------------------------
 
 def ensure_dir(p: Path) -> None:
     p.mkdir(parents=True, exist_ok=True)
@@ -52,10 +49,6 @@ def mae(y_true: np.ndarray, y_hat: np.ndarray) -> float:
     return float(np.mean(np.abs(y_true - y_hat)))
 
 
-# ----------------------------
-# MinMax scaler (train-only fit)
-# ----------------------------
-
 @dataclass
 class MinMax1D:
     x_min: float
@@ -71,11 +64,9 @@ class MinMax1D:
         return x01 * (self.x_max - self.x_min) + self.x_min
 
 
-# ----------------------------
-# ANFIS 1D (x7 only)
+
 # y = sum_i w_i * (a_i * x + b_i) / sum_i w_i
 # w_i = exp(-(x-c_i)^2/(2*s_i^2))
-# ----------------------------
 
 def gauss_mf(x: np.ndarray, c: np.ndarray, s: np.ndarray) -> np.ndarray:
     # x: (N,), c/s: (M,)
@@ -94,9 +85,9 @@ def anfis_forward(x: np.ndarray, c: np.ndarray, s: np.ndarray, a: np.ndarray, b:
       w:     (N,M) unnormalized firing
       wbar:  (N,M) normalized firing
     """
-    w = gauss_mf(x, c, s)                           # (N,M)
+    w = gauss_mf(x, c, s)                          
     w_sum = np.sum(w, axis=1, keepdims=True) + 1e-12
-    wbar = w / w_sum                                # (N,M)
+    wbar = w / w_sum                                
     # rule outputs: f_i(x) = a_i*x + b_i
     f = x.reshape(-1, 1) * a.reshape(1, -1) + b.reshape(1, -1)   # (N,M)
     y_hat = np.sum(wbar * f, axis=1)                # (N,)
@@ -109,18 +100,16 @@ def solve_consequents_ridge(x: np.ndarray, y: np.ndarray, wbar: np.ndarray, ridg
     Linear in params.
     """
     N, M = wbar.shape
-    # Build design matrix Phi: (N, 2M)
-    # For each i: columns are wbar_i*x and wbar_i*1
+
     Phi = np.zeros((N, 2 * M), dtype=float)
     for i in range(M):
         Phi[:, 2 * i] = wbar[:, i] * x
         Phi[:, 2 * i + 1] = wbar[:, i]
 
-    # Ridge: (Phi^T Phi + λI) theta = Phi^T y
     A = Phi.T @ Phi
     A += ridge * np.eye(A.shape[0])
     rhs = Phi.T @ y
-    theta = np.linalg.solve(A, rhs)  # (2M,)
+    theta = np.linalg.solve(A, rhs) 
 
     a = theta[0::2]
     b = theta[1::2]
@@ -135,21 +124,19 @@ def init_mfs_quantiles(x_train: np.ndarray,
     centres  : q-quantiles  (5 % … 95 %)
     sigmas   : ½ (min dist to neighbours) x sigma_mult / √(2 ln 2)
     """
-    # centres
-    q = np.linspace(0.05, 0.95, mf_count)
-    centres = np.quantile(x_train, q).astype(float)          # (m,)
 
-    # local spacing (min distance to nearest neighbour)
+    q = np.linspace(0.05, 0.95, mf_count)
+    centres = np.quantile(x_train, q).astype(float)  
+
     left  = np.roll(centres, 1)
     right = np.roll(centres, -1)
-    # distances to neighbours; use np.inf for edges
+ 
     d_left  = centres - left
     d_left[0]   = np.inf
     d_right = right - centres
     d_right[-1] = np.inf
-    d_min = np.minimum(d_left, d_right)                      # (m,)
+    d_min = np.minimum(d_left, d_right)                      
 
-    # convert to σ (≈ half-width / √(2 ln 2))
     sigmas = sigma_mult * d_min / np.sqrt(2 * np.log(2))
     sigmas = clip_sigmas(sigmas, 1e-3)
 
@@ -158,7 +145,7 @@ def init_mfs_quantiles(x_train: np.ndarray,
 def optimize_thresholds(y_hat: np.ndarray, y_true: np.ndarray) -> List[float]:
     """
     Find thresholds t1..t4 that maximize accuracy for ordered classes {1..5}.
-    We do a fast grid search over candidate thresholds from y_hat quantiles.
+    a fast grid search over candidate thresholds from y_hat quantiles.
 
     Mapping:
       <=t1 -> 1
@@ -167,7 +154,6 @@ def optimize_thresholds(y_hat: np.ndarray, y_true: np.ndarray) -> List[float]:
       (t3,t4] -> 4
       >t4 -> 5
     """
-    # candidates from quantiles of predictions
     q = np.linspace(0.05, 0.95, 60)
     cand = np.quantile(y_hat, q)
     cand = np.unique(np.clip(cand, 1.0, 5.0))
@@ -175,8 +161,7 @@ def optimize_thresholds(y_hat: np.ndarray, y_true: np.ndarray) -> List[float]:
     best_acc = -1.0
     best_t = [1.5, 2.5, 3.5, 4.5]
 
-    # brute force but small: ~60^4 is too big, so we do nested with pruning:
-    # enforce increasing thresholds and search progressively.
+    # brute force but small: ~60^4 is too big, so I do nested with pruning:
     for t1 in cand:
         for t2 in cand[cand > t1]:
             for t3 in cand[cand > t2]:
@@ -203,10 +188,6 @@ def round_decode(y_hat: np.ndarray) -> np.ndarray:
     return np.clip(y_pred, 1, 5)
 
 
-# ----------------------------
-# Training
-# ----------------------------
-
 def train_anfis_x7(
     x_train: np.ndarray,
     y_train: np.ndarray,
@@ -229,13 +210,10 @@ def train_anfis_x7(
     """
     rng = np.random.default_rng(seed)
 
-    # init premise
     c, s = init_mfs_quantiles(x_train, mf_count, sigma_mult=sigma_mult)
 
-    # init consequents
-    # First forward with dummy a/b so we can solve consequents properly
     a = np.zeros(mf_count, dtype=float)
-    b = np.linspace(1.0, 5.0, mf_count, dtype=float)  # sensible start
+    b = np.linspace(1.0, 5.0, mf_count, dtype=float)  
 
     best = {
         "epoch": 1,
@@ -262,29 +240,23 @@ def train_anfis_x7(
         "delta_s": [],
     }
 
-    # early stopping state
     if patience is not None:
         wait = 0
         best_mon = float("inf") if monitor == "mse" else -float("inf")
 
-    # ------------------------------------------------------------------
-    thresh_fixed = [1.5, 2.5, 3.5, 4.5]          # default round-decode cut-points
+    
+    thresh_fixed = [1.5, 2.5, 3.5, 4.5]         
 
     for ep in range(1, epochs + 1):
 
-        # ----------------------------------------------------------
-        # one-time expensive threshold search (epoch 3, optional)
-        # ----------------------------------------------------------
+
         if thresholds_mode == "optimize" and ep == 3:
             print("[init] running one-time threshold search …")
-            # first forward pass with current params
+
             yhat_tmp, _, _ = anfis_forward(x_train, c, s, a, b)
             thresh_fixed = optimize_thresholds(yhat_tmp, y_train)
             print(f"[init] optimal thresholds = {thresh_fixed}")
 
-        # ----------------------------------------------------------
-        # forward   (premise c,s | consequents a,b from previous step)
-        # ----------------------------------------------------------
         yhat_train, w_train, wbar_train = anfis_forward(x_train, c, s, a, b)
 
         # hybrid step – update consequents (ridge LS)
@@ -294,9 +266,7 @@ def train_anfis_x7(
         yhat_train, w_train, wbar_train = anfis_forward(x_train, c, s, a, b)
         yhat_test , _, _                = anfis_forward(x_test , c, s, a, b)
 
-        # ------------------------------------
-        # decode to class labels (fast!)
-        # ------------------------------------
+        # decode to class labels 
         if thresholds_mode == "optimize":
             ypred_train = apply_thresholds(yhat_train, thresh_fixed)
             ypred_test  = apply_thresholds(yhat_test , thresh_fixed)
@@ -304,7 +274,7 @@ def train_anfis_x7(
             ypred_train = round_decode(yhat_train)
             ypred_test  = round_decode(yhat_test)
 
-        # ---------- metrics -------------------------------------------------
+
         tr_mse = mse (y_train, yhat_train)
         te_mse = mse (y_test , yhat_test )
         tr_mae = mae (y_train, yhat_train)
@@ -312,7 +282,6 @@ def train_anfis_x7(
         tr_acc = accuracy(y_train, ypred_train)
         te_acc = accuracy(y_test , ypred_test )
 
-        # ---------- gradient for premise (c, s) -----------------------------
         S  = np.sum(w_train, axis=1, keepdims=True) + 1e-12
         f  = x_train.reshape(-1, 1) * a.reshape(1, -1) + b.reshape(1, -1)
         y  = yhat_train.reshape(-1, 1)
@@ -338,7 +307,6 @@ def train_anfis_x7(
         dc = float(np.mean(np.abs(c - c_prev)))
         ds = float(np.mean(np.abs(s - s_prev)))
 
-        # ---------- log history ---------------------------------------------
         hist["epoch"].append(ep)
         hist["train_mse"].append(tr_mse);  hist["test_mse"].append(te_mse)
         hist["train_mae"].append(tr_mae);  hist["test_mae"].append(te_mae)
@@ -346,7 +314,6 @@ def train_anfis_x7(
         hist["thresholds"].append(thresh_fixed)
         hist["delta_c"].append(dc);        hist["delta_s"].append(ds)
 
-        # ---------- best checkpoint -----------------------------------------
         better = (te_acc > best["test_acc"] + 1e-12) or \
                 (abs(te_acc - best["test_acc"]) <= 1e-12 and te_mse < best["test_mse"] - 1e-12)
 
@@ -357,7 +324,6 @@ def train_anfis_x7(
                 "thresholds": thresh_fixed.copy(), "yhat_test": yhat_test.copy(),
             })
 
-        # ---------- early stopping ------------------------------------------
         if patience is not None:
             current = te_mse if monitor == "mse" else te_acc
             if (monitor == "mse"  and best_mon - current >= min_delta) or \
@@ -368,7 +334,6 @@ def train_anfis_x7(
                 if wait >= patience:
                     break
 
-    # final evaluation at last epoch state
     yhat_train, _, _ = anfis_forward(x_train, c, s, a, b)
     yhat_test, _, _ = anfis_forward(x_test, c, s, a, b)
 
@@ -408,10 +373,6 @@ def train_anfis_x7(
     }
     return params, history, metrics, cm_best, cm_final, np.array(best["thresholds"]), np.array(final_th)
 
-
-# ----------------------------
-# Main
-# ----------------------------
 
 def main():
     ap = argparse.ArgumentParser()
@@ -492,19 +453,16 @@ def main():
         monitor=args.monitor,
     )
 
-    # save files
     save_json(out_base / "config.json", config)
     save_json(out_base / "train_history.json", history)
     save_json(out_base / "metrics.json", metrics)
 
-    # confusion matrices
     labels = [1, 2, 3, 4, 5]
     (out_base / "confusion_matrix_best.csv").write_text(pd.DataFrame(cm_best, index=labels, columns=labels).to_csv(), encoding="utf-8")
     (out_base / "confusion_matrix_final.csv").write_text(pd.DataFrame(cm_final, index=labels, columns=labels).to_csv(), encoding="utf-8")
     (out_base / "confusion_matrix_best_pretty.txt").write_text(pretty_confusion(cm_best, labels), encoding="utf-8")
     (out_base / "confusion_matrix_final_pretty.txt").write_text(pretty_confusion(cm_final, labels), encoding="utf-8")
 
-    # print summary
     be = metrics["best_epoch"]
     fe = metrics["final_epoch"]
     print("Done.")
