@@ -30,7 +30,7 @@ x7,         200000.0,   19.99531,   11.830955914949953, 0.0,    10.0,   20.0,   
 correlation_matrix is created in results\data_analysis\tables
 heatmap created in results\data_analysis\plots
 most correlation with remarks is with x7(0.82). 
-and the other features have low correlation with remarks all(0.20)
+and the x1–x6 have low correlation with remarks (~0.0–0.2 range), while x7 is dominant (0.82).
 
 # 2.5
 feature vs remarks distributions are visualized using per-class histograms
@@ -824,7 +824,153 @@ FIS-3 demonstrates that hierarchical fuzzy control using:
   aggregated secondary signal (S),
   overlap-gated refinement,
   and calibrated membership boundaries
-produces the strongest and most reliable fuzzy classifier in this study.
-
+produces the strongest and most reliable fuzzy classifier in this study. However, its average accuracy is still ~0.575 on the tiny 100-sample FIS splits, motivating ANFIS training on larger data.
 This validates the proposed fuzzy architecture and motivates the transition
 to ANFIS training for large-scale evaluation.
+
+
+# 5 ANFIS Plan and Design Decisions
+
+Motivation:
+The final Mamdani FIS (FIS-3) achieves the best fuzzy performance among all hand-designed models,
+but its average accuracy remains around ~0.575 on the very small 100-sample evaluation splits.
+This limitation is expected because:
+- rules and membership functions are manually tuned
+- small evaluation size introduces high variance
+- further improvement requires learning membership parameters from data
+
+Therefore, the next stage of the project is to train ANFIS models on large splits
+to reduce variance and optimize fuzzy parameters automatically.
+
+# 5.1 Data splits for ANFIS
+
+ANFIS uses the dedicated splits created by make_anfis_splits.py:
+
+Iteration 1:
+- Train: data/splits/anfis/anfis_iter1_train.csv  (37,500 samples = 7,500 per class)
+- Test : data/splits/anfis/anfis_iter1_test.csv   (12,500 samples = 2,500 per class)
+
+Iteration 2:
+- Train: data/splits/anfis/anfis_iter2_train.csv  (37,500 samples = 7,500 per class)
+- Test : data/splits/anfis/anfis_iter2_test.csv   (12,500 samples = 2,500 per class)
+
+Important:
+For fairness, all ANFIS models must use the same iteration splits
+so that ANFIS-x7, ANFIS-7D and ANFIS-(S+x7) are directly comparable.
+
+Sanity checks:
+sanity_checks.py confirms:
+- CSV loading works
+- columns are correct
+- values are numeric with no NaN / Inf
+- labels are valid in {1..5}
+- feature ranges are correct
+- class balance is exact (7,500 train / 2,500 test per class)
+
+# 5.2 Task formulation
+
+ANFIS is trained as a regression model predicting continuous output y_hat for remarks.
+
+Final predicted class:
+pred = clip(round(y_hat), 1, 5)
+
+Evaluation metrics:
+- classification accuracy (main metric)
+- confusion matrix
+- per-class accuracy
+- regression losses (MSE, MAE) for training diagnostics
+
+# 5.3 Feature scaling
+
+Although all features have bounded ranges:
+- x1..x6 in [0,10]
+- x7 in [0,40]
+- S roughly in [0.5, 9.7]
+
+ANFIS training is sensitive to gradient scale, therefore MinMax scaling to [0,1] is applied.
+
+Scaling procedure:
+- fit scaler on TRAIN only
+- apply same scaler to TEST
+- save scaling parameters in config.json for reproducibility
+
+# 5.4 ANFIS ablation models (locked design)
+
+Three ANFIS models will be trained as an ablation study:
+
+1) ANFIS-x7 (baseline)
+Inputs: [x7]
+MF type: Gaussian
+MF count:
+- x7: 5 MFs (VL, L, M, H, VH)
+Total rules: 5
+
+2) ANFIS-7D (all features)
+Inputs: [x1, x2, x3, x4, x5, x6, x7]
+MF type: Gaussian
+
+To avoid combinatorial explosion:
+- x1..x6: 2 MFs each (Low, High)
+- x7: 3 MFs (Low, Medium, High)
+
+Total rules = 2^6 * 3 = 192  (CPU feasible)
+
+3) ANFIS-(S + x7)
+Inputs: [S, x7]
+MF type: Gaussian
+MF count:
+- S: 3 MFs (Low, Medium, High)
+- x7: 5 MFs (VL, L, M, H, VH)
+Total rules = 15
+
+Training order:
+We implement and tune the models sequentially:
+1) ANFIS-x7 → tune to best performance
+2) ANFIS-7D → tune lightly
+3) ANFIS-(S + x7) → final model
+
+Each model is implemented in a separate Python file.
+
+# 5.5 Initialization and training
+
+Gaussian membership functions are initialized from TRAIN data:
+- centers from data quantiles
+- sigmas from spacing / range heuristics
+
+Training setup:
+- CPU only (Mac)
+- no early stopping
+- fixed number of epochs
+- learning rates per model (tuned separately)
+
+Even without early stopping, training history records:
+- train loss
+- test loss
+- test accuracy per epoch
+
+Best epoch is automatically extracted:
+- best test MSE
+- best test accuracy
+
+# 5.6 Output saving structure
+
+Results are saved under:
+
+results/anfis_results/<iteration>_<model_name>/
+
+Example:
+results/anfis_results/iter1_anfis_x7/
+
+Saved files:
+- config.json          (features, MFs, lr, epochs, scaling, splits, seed)
+- train_history.json  (per-epoch metrics + best epoch summary)
+- metrics.json        (final and best evaluation metrics)
+- confusion_matrix.csv
+- confusion_matrix_pretty.txt
+
+Predictions.csv is intentionally NOT saved.
+
+Conclusion:
+FIS-3 demonstrated the validity of the hierarchical fuzzy design.
+ANFIS training is the final step to achieve stable, high-performance fuzzy models
+on large datasets while preserving interpretability.

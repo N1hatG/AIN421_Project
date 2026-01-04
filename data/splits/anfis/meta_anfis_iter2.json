@@ -7,6 +7,8 @@
   "test_ratio": 0.25,
   "train_rows": 37500,
   "test_rows": 12500,
+  "train_rows_per_class": 7500,
+  "test_rows_per_class": 2500,
   "classes": [
     1,
     2,
@@ -28,5 +30,5 @@
   ],
   "target": "remarks",
   "source": "academicPerformanceData.xlsx (header=1)",
-  "note": "Use same train/test splits for ANFIS-7D, ANFIS-x7-only, ANFIS-(S+x7) ablations."
+  "note": "Class-wise split: exactly 10,000 per class, then 7,500 train / 2,500 test per class."
 }

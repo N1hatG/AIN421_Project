@@ -1,0 +1,268 @@
+============================================================
+AIN421 – Fuzzy Inference Systems (FIS) Configuration Document
+============================================================
+
+This document centralizes the final + evaluated configurations for:
+- FIS-1: x7 baseline (core rules)
+- FIS-2: x7 + (x2,x3) overlap-gated refinement
+- FIS-3: x7 + S overlap-gated refinement (FINAL fuzzy model)
+
+All scripts output:
+- confusion matrix CSV
+- predictions CSV
+under: results/fis_results/<fis-k>/
+
+------------------------------------------------------------
+Common data + splits
+------------------------------------------------------------
+FIS evaluation splits (100 samples each, 20 per class):
+- data/splits/fis/fis_run1.csv
+- data/splits/fis/fis_run2.csv
+
+Important:
+- fis_run1 and fis_run2 are disjoint (no overlap indices).
+- Due to very small split size, accuracy variance across runs is expected.
+
+Common helper variable:
+- S = mean(x1, x2, x3, x4, x5, x6)
+  (computed inside scripts if missing)
+
+------------------------------------------------------------
+x7 Membership Function Design (shared basis)
+------------------------------------------------------------
+x7 statistics per class were used to propose boundary values.
+Initial proposed boundaries (median midpoints):
+- b12 = 10.5
+- b23 = 19.5
+- b34 = 28.0
+- b45 = 34.0
+
+Final calibrated boundaries (used in FINAL FIS-3):
+- b12 = 10.5
+- b23 = 19.5
+- b34 = 28.5
+- b45 = 36.0
+
+x7 fuzzy sets (conceptually):
+- VL, L, M, H, VH
+(triangular + trapezoidal MFs; exact shapes implemented in code)
+
+------------------------------------------------------------
+FIS-1: x7-only baseline
+------------------------------------------------------------
+Purpose:
+- Strong interpretable baseline using only x7.
+
+Script:
+- src/fis_models/fis1_x7.py   (or equivalent x7-only script)
+
+Inputs:
+- x7 only
+
+Rules (core 5):
+R1: IF x7 is VL -> remarks = 1
+R2: IF x7 is L  -> remarks = 2
+R3: IF x7 is M  -> remarks = 3
+R4: IF x7 is H  -> remarks = 4
+R5: IF x7 is VH -> remarks = 5
+
+Modes:
+- core5 only (baseline)
+(early attempts at boundary refinements were discarded due to performance regression)
+
+Observed baseline performance:
+- fis_run1 accuracy ≈ 0.54
+- fis_run2 accuracy ≈ 0.54
+
+Conclusion:
+- Keep core5 x7-only as official baseline.
+
+------------------------------------------------------------
+FIS-2: x7 + (x2,x3) overlap-gated refinement
+------------------------------------------------------------
+Purpose:
+- Use x7 as dominant decision variable.
+- Use x2/x3 only for refinement inside true ambiguity zones (overlaps).
+
+Script:
+- src/fis_models/fis2_x7_x2x3.py
+
+Inputs:
+- x7
+- x2, x3
+
+Fuzzy sets:
+- x7: VL, L, M, H, VH
+- x2: Low, Med, High   (domain [0,10])
+- x3: Low, Med, High   (domain [0,10])
+
+Ambiguity detection (overlap gates):
+- over12 = min(VL, L)
+- over23 = min(L, M)
+- over34 = min(M, H)
+- over45 = min(H, VH)
+
+Refinement activation is overlap-gated:
+- Refinement fires only when overlap exists (true boundary region).
+- Gate relaxation (gate_relax) can widen activation:
+  gate = max(overlap, gate_relax * side_strength)
+  where side_strength = max(mu_left, mu_right)
+
+Refinement strength scaling:
+- ref_weight multiplies refinement firing, clipped to 1.0.
+
+Modes:
+- core5: core x7 rules only
+- overlap10: core5 + 5 refinement rules
+
+Rules (core 5):
+R1: IF x7 is VL -> 1
+R2: IF x7 is L  -> 2
+R3: IF x7 is M  -> 3
+R4: IF x7 is H  -> 4
+R5: IF x7 is VH -> 5
+
+Rules (overlap-gated refinement 5):
+R6:  IF over12 AND (x2 High OR x3 High) -> 2
+R7:  IF over23 AND (x2 Low  OR x3 Low ) -> 2
+R8:  IF over23 AND (x2 High OR x3 High) -> 3
+R9:  IF over34 AND (x2 High OR x3 High) -> 4
+R10: IF over45 AND (x2 High OR x3 High) -> 5
+
+Tuning summary (high-level):
+- ref_weight sweep at gate_relax=0.25 showed no effect (too strict overlap).
+- gate_relax sweep at ref_weight=3.0 showed:
+  * run1 improved at some g values (e.g., 0.35 / 0.55)
+  * run2 degraded when g > 0.25
+- due to small split size, no single g was best for both.
+
+Conclusion:
+- FIS-2 validates the hierarchical refinement concept,
+  but gains were not stable across both 100-sample splits.
+
+------------------------------------------------------------
+FIS-3: x7 + S overlap-gated refinement (FINAL fuzzy model)
+------------------------------------------------------------
+Purpose:
+- Compress weak but consistent x1–x6 signals into a single variable:
+  S = mean(x1..x6)
+- Use S as a refinement signal only in x7 ambiguity regions.
+- Keep rule budget compact (10 rules total), preserve interpretability.
+
+Script:
+- src/fis_models/fis3_x7_S.py
+
+Inputs:
+- x7
+- S = mean(x1..x6)   (computed if missing)
+
+S fuzzy sets (domain [0,10]):
+- Low, Med, High
+
+x7 fuzzy sets:
+- VL, L, M, H, VH
+
+Ambiguity detection (overlap gates):
+- over12 = min(VL, L)
+- over23 = min(L, M)
+- over34 = min(M, H)
+- over45 = min(H, VH)
+
+Gating + weighting (same mechanism as FIS-2):
+- gate = max(overlap, gate_relax * side_strength)
+- ref_weight scales refinement firing, clipped to 1.0.
+
+Modes:
+- core5: core x7 rules only
+- overlap10: core5 + 5 refinement rules using S
+
+Rules (core 5):
+R1: IF x7 is VL -> 1
+R2: IF x7 is L  -> 2
+R3: IF x7 is M  -> 3
+R4: IF x7 is H  -> 4
+R5: IF x7 is VH -> 5
+
+Rules (overlap-gated refinement 5 using S):
+R6:  IF over12 AND S High -> 2
+R7:  IF over23 AND S Low  -> 2
+R8:  IF over23 AND S High -> 3
+R9:  IF over34 AND S High -> 4
+R10: IF over45 AND S High -> 5
+
+Important runtime note:
+- crisp computation can hit denom==0 for some samples (no rule fires).
+- Implementation safely defaults crisp to 3.0 in such cases.
+- This does NOT affect class prediction directly (argmax over scores),
+  but indicates imperfect MF coverage at extremes.
+
+-------------------------
+FINAL SELECTED CONFIG
+-------------------------
+Chosen candidate: FIS-3 (x7 + S) overlap10
+Reason:
+- Best average performance across both fis_run1 and fis_run2
+- Stable confusion structure
+- Compact + interpretable (10 rules)
+- Validates “x7 dominant + S as boundary refiner” hypothesis
+
+Final hyperparameters:
+- mode      = overlap10
+- ref_weight= 6.0
+- gate_relax= 0.25
+
+Final x7 boundary calibration:
+- b12 = 10.5
+- b23 = 19.5
+- b34 = 28.5
+- b45 = 36.0
+
+Command used (run1):
+python3 src/fis_models/fis3_x7_S.py \
+  --input data/splits/fis/fis_run1.csv \
+  --mode overlap10 \
+  --ref_weight 6.0 \
+  --gate_relax 0.25 \
+  --b34 28.5 \
+  --b45 36.0
+
+Command used (run2):
+python3 src/fis_models/fis3_x7_S.py \
+  --input data/splits/fis/fis_run2.csv \
+  --mode overlap10 \
+  --ref_weight 6.0 \
+  --gate_relax 0.25 \
+  --b34 28.5 \
+  --b45 36.0
+
+Final results (fis_run1):
+Accuracy: 0.5700
+Confusion matrix (rows=true, cols=pred):
+true\pred   1   2   3   4   5
+1         15   5   0   0   0
+2          5  15   0   0   0
+3          0   7   7   5   1
+4          0   0   7   7   6
+5          0   0   1   6  13
+
+Saved:
+- results/fis_results/fis-3/confusion_fis_run1_fis3_x7_S_overlap10_w6.0_g0.25_b1210.5_b2319.5_b3428.5_b4536.0.csv
+- results/fis_results/fis-3/predictions_fis_run1_fis3_x7_S_overlap10_w6.0_g0.25_b1210.5_b2319.5_b3428.5_b4536.0.csv
+
+Final results (fis_run2):
+Accuracy: 0.5800
+Confusion matrix (rows=true, cols=pred):
+true\pred   1   2   3   4   5
+1         13   7   0   0   0
+2          3  17   0   0   0
+3          0   5   6   8   1
+4          0   0   3   7  10
+5          0   0   1   4  15
+
+Saved:
+- results/fis_results/fis-3/confusion_fis_run2_fis3_x7_S_overlap10_w6.0_g0.25_b1210.5_b2319.5_b3428.5_b4536.0.csv
+- results/fis_results/fis-3/predictions_fis_run2_fis3_x7_S_overlap10_w6.0_g0.25_b1210.5_b2319.5_b3428.5_b4536.0.csv
+
+------------------------------------------------------------
+End of FIS configuration document
+------------------------------------------------------------

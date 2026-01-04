@@ -1,0 +1,120 @@
+{
+  "files": {
+    "train": "data/splits/anfis/anfis_iter2_train.csv",
+    "test": "data/splits/anfis/anfis_iter2_test.csv"
+  },
+  "label_col": "remarks",
+  "checks": {
+    "load_csv": "PASS",
+    "columns": "PASS",
+    "numeric_no_nan_inf": "PASS",
+    "labels_valid": "PASS",
+    "ranges": "PASS",
+    "class_balance": "PASS",
+    "train_test_disjoint": "PASS"
+  },
+  "train_feature_ranges": {
+    "x1": {
+      "min": 0.0,
+      "max": 10.0
+    },
+    "x2": {
+      "min": 0.0,
+      "max": 10.0
+    },
+    "x3": {
+      "min": 0.0,
+      "max": 10.0
+    },
+    "x4": {
+      "min": 0.0,
+      "max": 10.0
+    },
+    "x5": {
+      "min": 0.0,
+      "max": 10.0
+    },
+    "x6": {
+      "min": 0.0,
+      "max": 10.0
+    },
+    "x7": {
+      "min": 0.0,
+      "max": 40.0
+    },
+    "S": {
+      "min": 0.6666666666666666,
+      "max": 9.5
+    }
+  },
+  "test_feature_ranges": {
+    "x1": {
+      "min": 0.0,
+      "max": 10.0
+    },
+    "x2": {
+      "min": 0.0,
+      "max": 10.0
+    },
+    "x3": {
+      "min": 0.0,
+      "max": 10.0
+    },
+    "x4": {
+      "min": 0.0,
+      "max": 10.0
+    },
+    "x5": {
+      "min": 0.0,
+      "max": 10.0
+    },
+    "x6": {
+      "min": 0.0,
+      "max": 10.0
+    },
+    "x7": {
+      "min": 0.0,
+      "max": 40.0
+    },
+    "S": {
+      "min": 1.0,
+      "max": 9.333333333333334
+    }
+  },
+  "train_counts": {
+    "n": 37500,
+    "per_class": {
+      "1": 7500,
+      "2": 7500,
+      "3": 7500,
+      "4": 7500,
+      "5": 7500
+    }
+  },
+  "test_counts": {
+    "n": 12500,
+    "per_class": {
+      "1": 2500,
+      "2": 2500,
+      "3": 2500,
+      "4": 2500,
+      "5": 2500
+    }
+  },
+  "overlap_check": {
+    "overlap_count": 0,
+    "overlap_test_indices_sample": [],
+    "checked_columns": [
+      "x1",
+      "x2",
+      "x3",
+      "x4",
+      "x5",
+      "x6",
+      "x7",
+      "remarks"
+    ]
+  },
+  "status": "PASS",
+  "errors": []
+}
