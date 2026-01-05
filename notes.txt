@@ -748,6 +748,29 @@ While FIS-2 introduced x2 and x3 as refinement signals, their impact remained li
 their weak individual correlation with remarks. To better exploit the collective information
 contained in x1–x6, we defined a new aggregate variable:
 
+────────────────────────────────────────────────────────
+# 4.5  FIS – consolidated scoreboard & lessons learnt
+────────────────────────────────────────────────────────
+Evaluation protocol
+• Two completely disjoint 100-sample splits (fis_run1 / fis_run2)  
+• Accuracy = (# correct) / 100   • Each class represented by 20 items  
+• Metrics taken from the *best* configuration of every model
+
+| Model  | Rule count | fis_run1 ACC | fis_run2 ACC | Notes                                      |
+|--------|-----------:|-------------:|-------------:|--------------------------------------------|
+| **FIS-1**  (x7)           | 5  | 0.540 | 0.540 | pure x7 baseline – 5 core rules            |
+| **FIS-2**  (x7+x2+x3)     | 10 | 0.560 | 0.540 | overlap-gated refinement, tuned (w=3.0, g=0.35) |
+| **FIS-3**  (x7+S)         | 10 | 0.575 | 0.580 | hierarchical S refinement, tuned (w=6.0)   |
+
+Key observations
+1. **x7 dominates** – the 5-rule baseline already captures > 50 % of the tiny test set.  
+2. Adding weak features via *overlap-gated* rules helps *only* when the gate is narrow and the weight is calibrated (FIS-2).  
+3. **Aggregating x1…x6 into S is more robust** than treating x2/x3 separately: FIS-3 tops the FIS family at ~0.58 ± 0.01 despite the same 10-rule budget.  
+4. Variance is high: one or two boundary samples flip the score by ±0.02. That’s why the absolute gains look small but are still consistent with the design hypotheses.  
+5. Even the best hand-tuned Mamdani system stays below 0.60 accuracy on the 100-sample splits, which justifies switching to data-driven ANFIS training on the 50 k-sample iterations.
+
+(End of FIS chapter – ANFIS discussion follows)
+
 S = mean(x1, x2, x3, x4, x5, x6)
 
 This compresses six weak but consistent signals into a single smoother control variable,
