@@ -1260,3 +1260,67 @@ python src\anfis_models\anfis_sx7.py ^
   --epochs 80 --lr 0.01 --ridge 1e-4 ^
   --sigma_mult 1.5 --thresholds optimize --scale ^
   --patience 10 --monitor acc --thr_refresh 0
+
+
+
+
+
+
+## Appendix – Implementation details confirmed from source code (FIS models)
+
+### A.1 FIS‑1 (x7 only) – membership functions & inference pipeline
+
+* **x7 fuzzy sets** (triangular / trapezoidal):
+
+  * Very‑Low (VL): `trapmf( 0 → 0.5 … 1.5 )`
+  * Low (L):       `trimf( 1.5, 2.0, 2.5 )`
+  * Medium (M):    `trimf( 2.5, 3.0, 3.5 )`
+  * High (H):      `trimf( 3.5, 4.0, 4.5 )`
+  * Very‑High (VH):`trapmf( 4.5 … 5.5 → 5.5 )`
+    *(boundaries correspond to **b₁₂ = 10.5, b₂₃ = 19.5, b₃₄ = 28.0, b₄₅ = 34.0** in the original x7 domain)*.
+
+* **Rule base**
+
+  * *core5* mode – five direct rules (VL→1, L→2, M→3, H→4, VH→5).
+  * *refined10* mode – above + five near‑boundary correction rules (see §4.2).
+
+* **Mamdani pipeline (from `fis_x7_only.py`)**
+
+  1. **Implication** – minimum.
+  2. **Aggregation** – maximum across all rules.
+  3. **Defuzzification** – centroid over `y ∈ [0.5, 5.5]` (2 001 samples).
+  4. **Crisp fallback** – if aggregated firing strength = 0, centroid is undefined; implementation replaces such cases with *3.0* before rounding fileciteturn28file14L58-L66.
+
+### A.2 Overlap‑gated refinement (shared by FIS‑2 & FIS‑3)
+
+* **Gate definition**: `over* = min(µ_left, µ_right)` – activates only where adjacent x7 sets overlap.
+* **Hyper‑parameters** (from sweep scripts & notes):
+
+  * `ref_weight` (default 1.0) – multiplies firing strength of refinement rules.
+  * `gate_relax` (default 0.25) – adds slack to overlap; effective gate = `over + gate_relax·side`.
+
+### A.3 Final selected settings (locked for report)
+
+| Model                | Mode        | ref_weight |    gate_relax | Calibrated boundaries      |
+| -------------------- | ----------- | ---------: | ------------: | -------------------------- |
+| **FIS‑2** (x7+x2+x3) | *overlap10* |        3.0 | 0.25 (stable) | default b₁₂…b₄₅            |
+| **FIS‑3** (x7+S)     | *overlap10* |    **6.0** |      **0.25** | **b₃₄ = 28.5, b₄₅ = 36.0** |
+
+These values reproduce the confusion matrices and accuracies recorded in §4.3 and §4.4 fileciteturn28file15L15-L24.
+
+### A.4 FIS evaluation splits
+
+* `fis_run1.csv`, `fis_run2.csv` – each **100** samples (20 per class).
+* **No overlap** between runs (enforced in `make_fis_splits.py`).
+
+### A.5 Command templates
+
+```bash
+# FIS‑3 final (run1)
+python3 src/fis_models/fis3_x7_S.py \
+  --input data/splits/fis/fis_run1.csv \
+  --mode overlap10 \
+  --ref_weight 6.0 \
+  --gate_relax 0.25 \
+  --b34 28.5 --b45 36.0
+```
