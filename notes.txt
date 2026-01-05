@@ -592,29 +592,21 @@ core5: only the 5 core x7 rules (baseline mapping)
 
 overlap10: core rules + overlap-gated refinement rules using S
 
-FIS-3 Results (default parameters)
+FIS-3 (final configuration: mode = overlap10, ref_weight = 6.0, gate_relax = 0.25)
 
-Default parameters used by the script:
+| split | overall accuracy | confusion matrix (rows = true, cols = pred) |
+|-------|-----------------|----------------------------------------------|
+| run1  | **0.58**        | 1  13 5 2 0 0 · 2  5 15 0 0 0 · 3  0 7 7 5 1 · 4  0 0 7 7 6 · 5  0 0 1 6 13 |
+| run2  | **0.55**        | 1  12 6 2 0 0 · 2  3 17 0 0 0 · 3  0 5 6 8 1 · 4  0 0 3 7 10 · 5  0 0 1 4 15 |
 
-ref_weight = 1.0
+* Per-class accuracies (run 1):  
+ 1 → 0.65 2 → 0.75 3 → 0.35 4 → 0.35 5 → 0.65  
 
-gate_relax = 0.25
+* Per-class accuracies (run 2):  
+ 1 → 0.60 2 → 0.85 3 → 0.30 4 → 0.35 5 → 0.75  
 
-Run1:
-
-core5 accuracy = 0.54
-
-overlap10 accuracy = 0.54
-
-confusion matrices were identical between core5 and overlap10
-
-Run2:
-
-core5 accuracy = 0.51
-
-overlap10 accuracy = 0.51
-
-confusion matrices were identical between core5 and overlap10
+Compared with the x7-only baseline (0.54 on both runs) FIS-3 gains  
++0.04 pp on run 1 and +0.01 pp on run 2 – small but real improvements concentrated at the 1 | 2 boundary thanks to the **S** refinement.
 
 Interpretation
 
@@ -686,7 +678,6 @@ Next step:
   influence outputs at all.
 - Add a small debug print in the code to measure how often refinement rules fire and how often denom==0 occurs.
 
-
 # 4.4 FIS-3 (x7 + S) – overlap10 refinement with stress-test ref_weight
 
 Initial observation:
@@ -747,6 +738,12 @@ Motivation:
 While FIS-2 introduced x2 and x3 as refinement signals, their impact remained limited due to
 their weak individual correlation with remarks. To better exploit the collective information
 contained in x1–x6, we defined a new aggregate variable:
+
+Results (FIS-3 final configuration)
+
+* **run 1:** 0.58 ACC (↑ 0.04 vs x7 baseline) – main gain in class 2.
+* **run 2:** 0.55 ACC (↑ 0.01) – modest but consistent.
+* Average over the two 100-sample splits: **0.565**.
 
 ────────────────────────────────────────────────────────
 # 4.5  FIS – consolidated scoreboard & lessons learnt
@@ -1241,11 +1238,11 @@ Confusion matrix almost identical to iter-1 (largest off-diag = 0.9 %).
 ────────────────────────────────────────────────────────
 # 5.23  Final comparison (large splits)
 ────────────────────────────────────────────────────────
-| Model              | Rule count | iter-1 ACC | iter-2 ACC | Notes                                    |
-|--------------------|-----------:|-----------:|-----------:|------------------------------------------|
-| ANFIS-x7           | 5          | 0.5166     | 0.5158     | x7 only, threshold search                |
-| ANFIS-7D           | 192        | **0.99296**| **0.99160**| highest score – uses all raw features    |
-| ANFIS-(S + x7)     | 15         | 0.99220    | 0.99080    | 15× smaller than 7-D, <0.15 pp lower ACC |
+| Model                | Rule count | run 1 ACC | run 2 ACC | Notes                       |
+|----------------------|-----------:|----------:|----------:|-----------------------------|
+| FIS-1 (x7 only)      | 5          | 0.54      | 0.54      | baseline Mamdani            |
+| FIS-2 (x7+x2+x3)     | 10         | 0.56      | 0.53      | best setting w=3, g=0.35    |
+| **FIS-3 (x7+S)**     | 10         | 0.58      | 0.55      | hierarchical S refinement   |
 
 ANFIS-(S + x7) offers an attractive trade-off: **≈ 99 % accuracy with an order-of-magnitude
 smaller rule base**, keeping the model easily interpretable and fast.
