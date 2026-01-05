@@ -1324,3 +1324,60 @@ python3 src/fis_models/fis3_x7_S.py \
   --gate_relax 0.25 \
   --b34 28.5 --b45 36.0
 ```
+
+
+## Extra pair-wise correlations
+The full 7×7 matrix (results/data_analysis/tables/correlation_matrix.csv) shows all |ρ| ≤ 0.08 between x1…x6. The highest is x2–x3 (ρ ≈ 0.08). Hence the weak features are virtually un-correlated with each other, justifying the simple 2-MF design.
+
+## FIS – short definition
+A Mamdani Fuzzy Inference System converts crisp inputs to linguistic terms via membership functions, evaluates IF–THEN rules with min/max operators, aggregates rule outputs, and finally computes a crisp decision using centroid defuzzification.
+
+## ANFIS – short definition
+ANFIS is a five-layer neuro-fuzzy network that realises first-order Takagi–Sugeno rules. Premise (MF) parameters are updated by gradient descent, while consequent linear coefficients are solved via least-squares in each epoch (hybrid learning).
+
+## Fixed rule counts after training
+ANFIS training does **not** alter rule topology – rule counts remain 5 (x7), 192 (7D) and 15 (S + x7).
+
+## FIS accuracy table  (100-sample runs)
+
+| Model | Rules | Run 1 ACC | Run 2 ACC |
+|-------|------:|----------:|----------:|
+| FIS-1 (x7)         |   5 | 0.54 | 0.54 |
+| FIS-2 (x7+x2+x3)   |  10 | 0.56★ | 0.53 |
+| FIS-3 (x7+S)       |  10 | 0.57 | 0.58 |
+
+*★best single-run FIS score*
+
+## Future work
+* Cross-validate ANFIS on 5 random 10 k-per-class subsamples to measure variance.  
+* Apply subtractive-clustering to auto-derive MF counts per input.  
+* Try Adam with learning-rate scheduling – current SGD still shows Δc, Δσ > 2 e-5 after 80 epochs.  
+* Prune zero-firing rules in the 192-rule 7-D model to get a leaner yet still 99 % accurate classifier.
+
+
+## Extra pair-wise correlations
+The full 7×7 matrix (results/data_analysis/tables/correlation_matrix.csv) shows all |ρ| ≤ 0.08 between x1…x6. The highest is x2–x3 (ρ ≈ 0.08). Hence the weak features are virtually un-correlated with each other, justifying the simple 2-MF design.
+
+## FIS – short definition
+A Mamdani Fuzzy Inference System converts crisp inputs to linguistic terms via membership functions, evaluates IF–THEN rules with min/max operators, aggregates rule outputs, and finally computes a crisp decision using centroid defuzzification.
+
+## ANFIS – short definition
+ANFIS is a five-layer neuro-fuzzy network that realises first-order Takagi–Sugeno rules. Premise (MF) parameters are updated by gradient descent, while consequent linear coefficients are solved via least-squares in each epoch (hybrid learning).
+
+## Fixed rule counts after training
+ANFIS training does **not** alter rule topology – rule counts remain 5 (x7), 192 (7D) and 15 (S + x7).
+
+## FIS accuracy table  (100-sample runs)
+
+| Model | Rules | Run 1 ACC | Run 2 ACC |
+|-------|------:|----------:|----------:|
+| FIS-1 (x7)         |   5 | 0.54 | 0.54 |
+| FIS-2 (x7+x2+x3)   |  10 | 0.56★ | 0.53 |
+| FIS-3 (x7+S)       |  10 | 0.57 | 0.58 |
+
+*★best single-run FIS score*
+
+## Future work
+* Cross-validate ANFIS on 5 random 10 k-per-class subsamples to measure variance.  
+* Apply subtractive-clustering to auto-derive MF counts per input.  
+* Try Adam with learning-rate scheduling – current SGD still shows Δc, Δσ > 2 e-5 after 80 epochs.  
